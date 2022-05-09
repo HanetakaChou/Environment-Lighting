@@ -1,0 +1,168 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_IMAGE_BASED_LIGHTING_BSLI_
+#define _BRX_IMAGE_BASED_LIGHTING_BSLI_ 1
+
+// glTF: EXT_lights_image_based
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_lights_image_based/README.md
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+#include "../../Brioche-Shader-Language/shaders/brx_brdf.bsli"
+
+brx_float3 brx_image_based_diffuse_lighting(brx_float3 diffuse_color, brx_float3 specular_color, brx_float3 N, brx_float3 irradiance_coefficients[9])
+{   
+    // the environment map space (+Z Up; +X Front) may be different from the scene, the normal (N) should be properly transformed before use
+
+    // UnrealEngine: [DiffuseIrradianceCopyPS](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShaders.usf#L438)
+    // UnrealEngine: [ComputeSkyEnvMapDiffuseIrradianceCS](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShaders.usf#L534)
+    // Unity3D: [AmbientProbeConvolution](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Sky/AmbientProbeConvolution.compute#L36)
+
+    // UnrealEngine: [GetSkyLighting](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L557)
+    // Unity3D: [ProbeVolumeEvaluateSphericalHarmonics](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightLoop/LightLoop.hlsl#L553)
+
+    brx_float3 irradiance_normal;
+    {
+        // "Stupid Spherical Harmonics (SH)" / "Appendix A10 Shader/CPU code for Irradiance Environment Maps"
+
+        // x: P(1, 1)
+        // y: P(1,-1)
+        // z: P(1, 0)
+        // w: P(0, 0) + part of P(2, 0)
+        brx_float4 cAr;
+        brx_float4 cAg;
+        brx_float4 cAb;
+
+        // x: P(2,-2)
+        // y: P(2,-1)
+        // z: part of P(2, 0)
+        // w: P(2, 1)
+        brx_float4 cBr;
+        brx_float4 cBg;
+        brx_float4 cBb;
+
+        // x: P(2, 2)
+        // y: P(2, 2)
+        // z: P(2, 2)
+        brx_float3 cC;
+        {
+            // UnrealEngine: [SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Source/Runtime/Renderer/Private/SceneRendering.cpp#L979)
+            // UnrealEngine: [ComputeSkyEnvMapDiffuseIrradianceCS](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShaders.usf#L607)
+            // Unity3D: [PackCoefficients](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Lighting/SphericalHarmonics.cs#L196)
+
+            // "Appendix A10" of [Sloan 2008]: "SetSHEMapConstants"
+            // F = (1 / PI) * E = (1 / PI) * (sqrt((4 * PI) / (2l + 1)) * SH(L_omega) * ZH(cos_theta)) = ((1 / PI) * sqrt((4 * PI) / (2l + 1)) * ZH(cos_theta)) * SH(L_omega)
+            // "(1 / PI) * sqrt((4 * PI) / (2l + 1)) * ZH(cos_theta)" is precalculated.
+            // Since the "PI" is divided, it is the "form factor" rather than the "irradiance" that [Sloan 2008] calculates.
+            const brx_float fC0 = 0.282094791773878140;
+            const brx_float fC1 = 0.325735007935279930;
+            const brx_float fC2 = 0.273137107648019790;
+            const brx_float fC3 = 0.078847891313130011;
+            const brx_float fC4 = 0.136568553824009900;
+
+            // x: P(1, 1)
+            // y: P(1,-1)
+            // z: P(1, 0)
+            // w: P(0, 0) + part of P(2, 0)
+            cAr.x = -fC1 * irradiance_coefficients[3].r;
+            cAr.y = -fC1 * irradiance_coefficients[1].r;
+            cAr.z = fC1 * irradiance_coefficients[2].r;
+            cAr.w = fC0 * irradiance_coefficients[0].r - fC3 * irradiance_coefficients[6].r;
+
+            cAg.x = -fC1 * irradiance_coefficients[3].g;
+            cAg.y = -fC1 * irradiance_coefficients[1].g;
+            cAg.z = fC1 * irradiance_coefficients[2].g;
+            cAg.w = fC0 * irradiance_coefficients[0].g - fC3 * irradiance_coefficients[6].g;
+
+            cAb.x = -fC1 * irradiance_coefficients[3].b;
+            cAb.y = -fC1 * irradiance_coefficients[1].b;
+            cAb.z = fC1 * irradiance_coefficients[2].b;
+            cAb.w = fC0 * irradiance_coefficients[0].b - fC3 * irradiance_coefficients[6].b;
+
+            // x: P(2,-2)
+            // y: P(2,-1)
+            // z: part of P(2, 0)
+            // w: P(2, 1)
+            cBr.x = fC2 * irradiance_coefficients[4].r;
+            cBr.y = -fC2 * irradiance_coefficients[5].r;
+            cBr.z = 3.0 * fC3 * irradiance_coefficients[6].r;
+            cBr.w = -fC2 * irradiance_coefficients[7].r;
+
+            cBg.x = fC2 * irradiance_coefficients[4].g;
+            cBg.y = -fC2 * irradiance_coefficients[5].g;
+            cBg.z = 3.0 * fC3 * irradiance_coefficients[6].g;
+            cBg.w = -fC2 * irradiance_coefficients[7].g;
+
+            cBb.x = fC2 * irradiance_coefficients[4].b;
+            cBb.y = -fC2 * irradiance_coefficients[5].b;
+            cBb.z = 3.0 * fC3 * irradiance_coefficients[6].b;
+            cBb.w = -fC2 * irradiance_coefficients[7].b;
+
+            // x: P(2, 2)
+            // y: P(2, 2)
+            // z: P(2, 2)
+            cC.r = fC4 * irradiance_coefficients[8].r;
+            cC.g = fC4 * irradiance_coefficients[8].g;
+            cC.b = fC4 * irradiance_coefficients[8].b;
+        }
+
+        // P(0, 0) =  0.282094791773878140
+        // P(1,-1) = -0.488602511902919920*y
+        // P(1, 0) =  0.488602511902919920*z
+        // P(1, 1) = -0.488602511902919920*x
+        // P(2,-2) =  1.092548430592079200*x*y
+        // P(2,-1) = -1.092548430592079200*y*z
+        // P(2, 0) =  0.946174695757560080*z*z + -0.315391565252520050
+        // P(2, 1) = -1.092548430592079200*x*z
+        // P(2, 2) =  0.546274215296039590*(x*x - y*y)
+
+        // x: P(1, 1)
+        // y: P(1,-1)
+        // z: P(1, 0)
+        // w: P(0, 0) + part of P(2, 0)
+        brx_float3 x1 = brx_float3(brx_dot(cAr, brx_float4(N, 1.0)), brx_dot(cAg, brx_float4(N, 1.0)), brx_dot(cAb, brx_float4(N, 1.0)));
+
+        // x: P(2,-2)
+        // y: P(2,-1)
+        // z: part of P(2, 0)
+        // w: P(2, 1)
+        brx_float4 vB = N.xyzz * N.yzzx;
+        brx_float3 x2 = brx_float3(brx_dot(cBr, vB), brx_dot(cBg, vB), brx_dot(cBb, vB));
+
+        // x: P(2, 2)
+        // y: P(2, 2)
+        // z: P(2, 2)
+        brx_float vC = N.x * N.x - N.y * N.y;
+        brx_float3 x3 = cC * vC;
+
+        brx_float3 form_factor_normal = x1 + x2 + x3;
+
+        irradiance_normal = BRX_M_PI * form_factor_normal;
+    }
+
+    // Unreal Engine: [EnvBRDFApproxFullyRough](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L1055)
+    // Unity3D: [GetDiffuseOrDefaultColor](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Material/Lit/Lit.hlsl#L1237)
+    {
+        diffuse_color = diffuse_color + specular_color * 0.45;
+    }
+
+    brx_float3 diffuse_radiance = brx_brdf_diffuse_lambert(diffuse_color) * irradiance_normal;
+
+    return diffuse_radiance;
+}
+
+#endif
