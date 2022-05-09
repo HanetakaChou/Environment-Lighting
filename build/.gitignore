@@ -1,0 +1,5 @@
+/.vs
+/bin
+/obj
+/brx_spherical_harmonic_look_up_table_transfer_functions.dds
+/*.vcxproj.user

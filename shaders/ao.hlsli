@@ -1,0 +1,68 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _AO_HLSLI_
+#define _AO_HLSLI_ 1
+
+float AO_BentNormal(float ambient_occlusion, float3 bent_normal)
+{
+    // Equation 11.10 of Real-Time Rendering Fourth Edition: "Landis [974] also computes an average unoccluded direction, known as a bent normal"
+    // UE: [ApplyBentNormal](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L725)
+
+    // skipped when 'bent_normal' is NOT provided by the material
+    return ambient_occlusion;
+}
+
+float DO_BentNormal(float ambient_occlusion, float3 bent_normal)
+{
+    // Figure 11.18 of Real-Time Rendering Fourth Edition: "Using a bent normal effectively shifts the cosine lobe toward the unoccluded portions of the sky"
+    // UE: [ApplyBentNormal](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L725)
+    // U3D: [GetSpecularOcclusionFromBentAO](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.core/ShaderLibrary/CommonLighting.hlsl#L282)
+
+    // skipped when 'bent_normal' is NOT provided by the material
+    return ambient_occlusion;
+}
+
+float DO_FromAO(float ambient_occlusion, float roughness, float NdotV)
+{
+    // UE: [GetSpecularOcclusion](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShared.ush#L126)
+    // U3D: [GetSpecularOcclusionFromAmbientOcclusion](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.core/ShaderLibrary/CommonLighting.hlsl#L231)
+
+    // Real-Time Rendering Fourth Edition / 9.8.1 Normal Distribution Functions: "In the Disney principled shading model, Burley[214] exposes the roughness control to users as αg = r2, where r is the user-interface roughness parameter value between 0 and 1."
+    float alpha = roughness * roughness;
+
+    float directional_occlusion = clamp(ambient_occlusion + pow(ambient_occlusion + NdotV, alpha) - 1.0, 0.0, 1.0);
+
+    return directional_occlusion;
+}
+
+float3 AO_InterReflections(float ambient_occlusion, float3 albedo)
+{
+    // Real-Time Rendering Fourth Edition / 11.3.3 Accounting for Interreflections: "Jimenez et al. [835]." "Based on these examples, they fit cubic polynomials to approximate the function f that maps from the ambient occlusion value kA and subsurface albedo ρss to the occlusion value kA′, which is brightened by the interreflected light."
+    // UE: [AOMultiBounce](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L627)
+    // U3D: [GTAOMultiBounce](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.core/ShaderLibrary/CommonLighting.hlsl#L238)
+
+    float3 a = 2.0404 * albedo - 0.3324;
+    float3 b = -4.7951 * albedo + 0.6417;
+    float3 c = 2.7552 * albedo + 0.6903;
+
+    float x = ambient_occlusion;
+    float3 ao_interreflections = max(float3(x, x, x), ((x * a + b) * x + c) * x);
+    return ao_interreflections;
+}
+
+#endif
