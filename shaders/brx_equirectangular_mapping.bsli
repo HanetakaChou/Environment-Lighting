@@ -1,0 +1,64 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_EQUIRECTANGULAR_MAPPING_BSLI_
+#define _BRX_EQUIRECTANGULAR_MAPPING_BSLI_ 1
+
+// Real-Time Rendering Fourth Edition: 10.4.1 Latitude-Longitude Mapping
+// [PBR Book V3: 12.6 Infinite Area Lights](https://www.pbr-book.org/3ed-2018/Light_Sources/Infinite_Area_Lights)
+// [PBRT-V3: InfiniteAreaLight::Le](https://github.com/mmp/pbrt-v3/blob/master/src/lights/infinite.cpp#L92)
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+#include "../../Brioche-Shader-Language/shaders/brx_math_consts.bsli"
+
+brx_float2 brx_equirectangular_map(brx_float3 omega)
+{
+    // NOTE: omega should have already been normalized
+
+    brx_float theta = brx_acos(omega.z);
+    brx_float phi = brx_atan2(omega.y, omega.x);
+    return brx_float2((phi + BRX_M_PI) * (1.0 / (BRX_M_PI * 2.0)), theta * (1.0 / BRX_M_PI));
+}
+
+brx_float3 brx_equirectangular_unmap(brx_float2 uv)
+{
+    // ANARI 
+    // 5.7.2. HDRI
+    // direction
+    //
+    // the center of the texture should be mapped to (1, 0, 0) 
+
+    brx_float phi = uv.x * (BRX_M_PI * 2.0) - BRX_M_PI;
+    brx_float theta = uv.y * BRX_M_PI;
+    brx_float sin_phi = brx_sin(phi);
+    brx_float cos_phi = brx_cos(phi);
+    brx_float sin_theta = brx_sin(theta);
+    brx_float cos_theta = brx_cos(theta);
+    return brx_float3(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta);
+}
+
+brx_float brx_equirectangular_solid_angle_weight(brx_float2 uv)
+{
+    brx_float theta = uv.y * BRX_M_PI;
+    brx_float sin_theta = brx_sin(theta);
+    brx_float d_theta = BRX_M_PI;
+    brx_float d_phi = BRX_M_PI * 2.0;
+    brx_float d_omega_mul_texture_size = sin_theta * d_theta * d_phi;
+    return d_omega_mul_texture_size;
+}
+
+#endif

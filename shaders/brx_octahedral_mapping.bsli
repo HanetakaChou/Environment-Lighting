@@ -1,0 +1,76 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_OCTAHEDRAL_MAPPING_BSLI_
+#define _BRX_OCTAHEDRAL_MAPPING_BSLI_ 1
+
+// [Engelhardt 2008] Thomas Engelhardt, Carsten Dachsbacher. "Octahedron Environment Maps." VMV 2008.
+// [Cigolle 2014] Zina Cigolle, Sam Donow, Daniel Evangelakos, Michael Mara, Morgan McGuire, Quirin Meyer. "A Survey of Efficient Representations for Independent Unit Vectors." JCGT 2014.
+
+// Real-Time Rendering Fourth Edition: 10.4.4 Other Projections
+// Real-Time Rendering Fourth Edition: 16.6 Compression and Precision
+// [PBR Book V4: 12.5.2 Image Infinite Lights](https://www.pbr-book.org/4ed/Light_Sources/Infinite_Area_Lights#ImageInfiniteLights)
+// [PBRT-V: ImageInfiniteLight::Le](https://github.com/mmp/pbrt-v4/blob/master/src/pbrt/lights.h#L574)
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+
+brx_float2 brx_octahedral_map(brx_float3 position_sphere_surface)
+{
+    // NOTE: positions on the sphere surface should have already been normalized
+
+    brx_float manhattan_norm = brx_abs(position_sphere_surface.x) + brx_abs(position_sphere_surface.y) + brx_abs(position_sphere_surface.z);
+
+    brx_float3 position_octahedron_surface = position_sphere_surface * (1.0 / manhattan_norm);
+
+    brx_float2 position_ndc_space = (position_octahedron_surface.z > 0.0) ? position_octahedron_surface.xy : brx_float2((1.0 - brx_abs(position_octahedron_surface.y)) * ((position_octahedron_surface.x >= 0.0) ? 1.0 : -1.0), (1.0 - brx_abs(position_octahedron_surface.x)) * ((position_octahedron_surface.y >= 0.0) ? 1.0 : -1.0));
+
+    return position_ndc_space;
+}
+
+brx_float3 brx_octahedral_unmap(brx_float2 position_ndc_space)
+{
+    brx_float position_octahedron_surface_z = 1.0 - brx_abs(position_ndc_space.x) - brx_abs(position_ndc_space.y);
+
+    brx_float2 position_octahedron_surface_xy = (position_octahedron_surface_z >= 0.0) ? position_ndc_space : brx_float2((1.0 - brx_abs(position_ndc_space.y)) * ((position_ndc_space.x >= 0.0) ? 1.0 : -1.0), (1.0 - brx_abs(position_ndc_space.x)) * ((position_ndc_space.y >= 0.0) ? 1.0 : -1.0));
+
+    brx_float3 position_sphere_surface = brx_normalize(brx_float3(position_octahedron_surface_xy, position_octahedron_surface_z));
+
+    return position_sphere_surface;
+}
+
+brx_float brx_octahedral_map_solid_angle_weight(brx_float2 position_ndc_space)
+{
+    brx_float position_octahedron_surface_z = 1.0 - brx_abs(position_ndc_space.x) - brx_abs(position_ndc_space.y);
+
+    brx_float2 position_octahedron_surface_xy = (position_octahedron_surface_z >= 0.0) ? position_ndc_space : brx_float2((1.0 - brx_abs(position_ndc_space.y)) * ((position_ndc_space.x >= 0.0) ? 1.0 : -1.0), (1.0 - brx_abs(position_ndc_space.x)) * ((position_ndc_space.y >= 0.0) ? 1.0 : -1.0));
+    
+    brx_float3 position_octahedron_surface = brx_float3(position_octahedron_surface_xy, position_octahedron_surface_z);
+
+    // the common divisor "1 / (texture_width * texture_height)" can be reduced, and thus is NOT calculated here
+    brx_float d_a_mul_texture_size = (1.0 - (-1.0)) * (1.0 - (-1.0));
+
+    brx_float r_2 = brx_dot(position_octahedron_surface, position_octahedron_surface);
+    
+    // technically, this term should be "sqrt(3) * cos_theta"
+    brx_float cos_theta = (abs(position_octahedron_surface.x) + abs(position_octahedron_surface.y) + abs(position_octahedron_surface.z)) / sqrt(r_2);
+    
+    brx_float d_omega_mul_texture_size = d_a_mul_texture_size * cos_theta / r_2;
+
+    return d_omega_mul_texture_size;
+}
+
+#endif
