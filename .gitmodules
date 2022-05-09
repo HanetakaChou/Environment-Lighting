@@ -1,0 +1,8 @@
+[submodule "thirdparty/Environment-Lighting"]
+	path = thirdparty/Environment-Lighting
+	url = git@github.com:HanetakaChou/Environment-Lighting.git
+	branch = master
+[submodule "thirdparty/Brioche-Shader-Language"]
+	path = thirdparty/Brioche-Shader-Language
+	url = git@github.com:HanetakaChou/Brioche-Shader-Language.git
+	branch = master

@@ -1,0 +1,169 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{a7c933e8-f964-4aa3-b8f8-94cb8dde6d47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assets">
+      <UniqueIdentifier>{c61df686-3078-4f21-a698-089d3b3f7477}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{cdf7ce73-de1a-4d3e-9667-75fc20f4f9c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{a8bb2ad5-d08e-4090-bcf6-bfd11fc1b654}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\Environment-Lighting">
+      <UniqueIdentifier>{dd9c8b17-7130-4c01-84be-57989360bfd0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\Environment-Lighting\include">
+      <UniqueIdentifier>{32997ced-527c-4b9f-9048-61630fc85399}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\Environment-Lighting\shaders">
+      <UniqueIdentifier>{23b92420-f2a4-466e-a2bf-99c267e83fde}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\Brioche-Shader-Language">
+      <UniqueIdentifier>{e00d7d4e-4adb-4cb4-8dde-53bf6fd21bc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\Brioche-Shader-Language\shaders">
+      <UniqueIdentifier>{74ada1c0-1a2a-4b16-84af-5e6fd31e873e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\source\demo.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\render_main.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\window_main.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\camera_controller.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\DDSTextureLoader.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\assets\sphere.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\DirectXSH.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\DirectXSHD3D11.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\source\demo.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shaders\forward_shading_pipeline_layout.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shaders\integrate_ld_normal_distribution_pipeline_layout.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\render_main.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\resolution.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\window_main.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\camera_controller.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\DDSTextureLoader.h">
+      <Filter>source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\assets\sphere.h">
+      <Filter>assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Environment-Lighting\include\brx_octahedral_mapping.h">
+      <Filter>thirdparty\Environment-Lighting\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Environment-Lighting\include\brx_diffuse_environment_lighting_sh_projection_reduce.h">
+      <Filter>thirdparty\Environment-Lighting\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Environment-Lighting\include\brx_diffuse_environment_lighting_sh_projection_clear.h">
+      <Filter>thirdparty\Environment-Lighting\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\source\DirectXSH.h">
+      <Filter>source</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\shaders\ao.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\brdf_sampling.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\environment_lighting.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\hemispherical_hirectional_reflectance.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\low_discrepancy_sequence.hlsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Environment-Lighting\shaders\brx_equirectangular_mapping.bsli">
+      <Filter>thirdparty\Environment-Lighting\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Environment-Lighting\shaders\brx_octahedral_mapping.bsli">
+      <Filter>thirdparty\Environment-Lighting\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Environment-Lighting\shaders\brx_diffuse_environment_lighting_sh_projection_clear.bsli">
+      <Filter>thirdparty\Environment-Lighting\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Environment-Lighting\shaders\brx_diffuse_environment_lighting_sh_projection_reduce.bsli">
+      <Filter>thirdparty\Environment-Lighting\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Brioche-Shader-Language\shaders\brx_math_consts.bsli">
+      <Filter>thirdparty\Brioche-Shader-Language\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Brioche-Shader-Language\shaders\brx_shader_language.bsli">
+      <Filter>thirdparty\Brioche-Shader-Language\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Brioche-Shader-Language\shaders\brx_brdf.hlsli">
+      <Filter>thirdparty\Brioche-Shader-Language\shaders</Filter>
+    </None>
+    <None Include="..\thirdparty\Environment-Lighting\shaders\brx_diffuse_environment_lighting.bsli">
+      <Filter>thirdparty\Environment-Lighting\shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shaders\forward_shading_fragment.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\forward_shading_vertex.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\diffuse_environment_lighting_sh_projection_octahedral_map.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\integrate_hemispherical_directional_reflectance.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\integrate_ld_normal_distribution.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\diffuse_environment_lighting_sh_projection_clear.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\cube_map_to_octahedral_map.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\cube_map_to_equirectangular_map.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\diffuse_environment_lighting_sh_projection_equirectangular_map.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
