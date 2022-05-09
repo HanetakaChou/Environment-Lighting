@@ -1,0 +1,417 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_SPHERICAL_HARMONIC_PROJECTION_ENVIRONMENT_MAP_REDUCE_BSLI_
+#define _BRX_SPHERICAL_HARMONIC_PROJECTION_ENVIRONMENT_MAP_REDUCE_BSLI_ 1
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+
+brx_int2 brx_sh_application_bridge_get_environment_map_dimension();
+
+brx_float3 brx_sh_application_bridge_get_environment_map_lighting(in brx_int2 texture_coordinates);
+
+brx_uint brx_sh_application_bridge_get_environment_map_sh_coefficient(in brx_int in_environment_map_sh_coefficient_monochromatic_index);
+
+brx_uint brx_sh_application_bridge_compare_and_swap_environment_map_sh_coefficient(in brx_int in_environment_map_sh_coefficient_monochromatic_index, in brx_uint in_old_value, in brx_uint in_new_value);
+
+#define BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_EQUIRECTANGULAR_MAP 1
+#define BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_OCTAHEDRAL_MAP 2
+
+#ifndef BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT
+#error "equirectangular or octahedral"
+#endif
+
+#if BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_EQUIRECTANGULAR_MAP == BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT
+#include "../../Brioche-Shader-Language/shaders/brx_equirectangular_mapping.bsli"
+#elif BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_OCTAHEDRAL_MAP == BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT
+#include "../../Brioche-Shader-Language/shaders/brx_octahedral_mapping.bsli"
+#else
+#error Unknown Layout
+#endif
+
+#include "../include/brx_spherical_harmonic.h"
+#include "../include/brx_spherical_harmonic_projection_environment_map.h"
+
+struct INTERNAL_BRX_FLOAT_SH
+{
+    //  0 -> (0,  0)
+    //  1 -> (1, -1)
+    //  2 -> (1,  0)
+    //  3 -> (1,  1)
+    //  4 -> (2, -2)
+    //  5 -> (2, -1)
+    //  6 -> (2,  0)
+    //  7 -> (2,  1)
+    //  8 -> (2,  2)
+    //  9 -> (3, -3)
+    // 10 -> (3, -2)
+    // 11 -> (3, -1)
+    // 12 -> (3,  0)
+    // 13 -> (3,  1)
+    // 14 -> (3,  2)
+    // 15 -> (3,  3)
+    // 16 -> (4, -4)
+    // 17 -> (4, -3)
+    // 18 -> (4, -2)
+    // 19 -> (4, -1)
+    // 20 -> (4,  0)
+    // 21 -> (4,  1)
+    // 22 -> (4,  2)
+    // 23 -> (4,  3)
+    // 24 -> (4,  4)
+    // 25 -> (5, -5)
+    // 26 -> (5, -4)
+    // 27 -> (5, -3)
+    // 28 -> (5, -2)
+    // 29 -> (5, -1)
+    // 30 -> (5,  0)
+    // 31 -> (5,  1)
+    // 32 -> (5,  2)
+    // 33 -> (5,  3)
+    // 34 -> (5,  4)
+    // 35 -> (5,  5)
+    brx_float v[BRX_SH_COEFFICIENT_COUNT];
+};
+
+struct INTERNAL_BRX_FLOAT3_SH
+{
+    // x -> r
+    // y -> g
+    // z -> b
+    brx_float3 v[BRX_SH_COEFFICIENT_COUNT];
+};
+
+INTERNAL_BRX_FLOAT_SH internal_brx_float_sh_evaluate_basis(brx_float3 direction);
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float_sh_scale_float3(INTERNAL_BRX_FLOAT_SH x, brx_float3 scale);
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_zero();
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_add_float3(INTERNAL_BRX_FLOAT3_SH x, INTERNAL_BRX_FLOAT3_SH y);
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_scale_float(INTERNAL_BRX_FLOAT3_SH x, float scale);
+
+#define INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_SAMPLE_COUNT (BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_X * BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_Y * BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_Z)
+
+#if 0 != (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_SAMPLE_COUNT & (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_SAMPLE_COUNT - 1))
+#error "not power of 2"
+#endif
+
+// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-variable-syntax
+// "in D3D11 the maximum size is 32kb"
+// 13824 = 4 * 9 * 3 * 128
+#define INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_SAMPLE_COUNT / 2)
+
+#if 0 != (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT & (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT - 1))
+#error "not power of 2"
+#endif
+
+brx_group_shared INTERNAL_BRX_FLOAT3_SH internal_brx_sh_projection_environment_map_reduction_group_shared_memory[INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT];
+
+#ifndef INTERNAL_BRX_DISABLE_ROOT_SIGNATURE
+brx_root_signature(brx_environment_lighting_sh_projection_reduce_root_signature_macro, brx_environment_lighting_sh_projection_reduce_root_signature_name)
+#endif
+brx_num_threads(BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_X, BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_Y, BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_Z)
+brx_compute_shader_parameter_begin(main)
+brx_compute_shader_parameter_in_group_id brx_compute_shader_parameter_split
+brx_compute_shader_parameter_in_group_thread_id brx_compute_shader_parameter_split
+brx_compute_shader_parameter_in_group_index
+brx_compute_shader_parameter_end(main)
+{
+    // UnrealEngine: [DiffuseIrradianceCopyPS](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShaders.usf#L438)
+    // UnrealEngine: [ComputeSkyEnvMapDiffuseIrradianceCS](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/ReflectionEnvironmentShaders.usf#L534)
+    // Unity3D: [AmbientProbeConvolution](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Sky/AmbientProbeConvolution.compute#L36)
+    // DirectXMath: [SHProjectCubeMap](https://github.com/microsoft/DirectXMath/blob/jul2018b/SHMath/DirectXSHD3D11.cpp#L169)
+
+    brx_int2 texture_size = brx_sh_application_bridge_get_environment_map_dimension();
+
+    INTERNAL_BRX_FLOAT3_SH reduction_thread_local_sh_rgb = internal_brx_float3_sh_zero();
+
+    brx_int width_index = brx_int(BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_X) * brx_int(brx_group_id.x) + brx_int(brx_group_thread_id.x);
+    brx_int height_index = brx_int(BRX_SH_PROJECTION_ENVIRONMENT_MAP_THREAD_GROUP_Y) * brx_int(brx_group_id.y) + brx_int(brx_group_thread_id.y);
+    brx_int2 texture_coordinates = brx_int2(width_index, height_index);
+
+    brx_branch if (brx_all(brx_less_than(texture_coordinates, texture_size)))
+    {
+        brx_float3 omega;
+        brx_float d_omega_mul_texture_dimension;
+        brx_float3 L_omega;
+        {
+#if (BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_EQUIRECTANGULAR_MAP == BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT)
+            // Equirectangular Mapping
+            brx_float3 raw_L_omega = brx_sh_application_bridge_get_environment_map_lighting(texture_coordinates);
+
+            brx_float2 uv = (brx_float2(texture_coordinates) + brx_float2(0.5, 0.5)) / brx_float2(texture_size);
+
+            omega = brx_equirectangular_unmap(uv);
+
+            d_omega_mul_texture_dimension = brx_equirectangular_solid_angle_weight(uv);
+#elif (BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT_OCTAHEDRAL_MAP == BRX_SH_PROJECTION_ENVIRONMENT_MAP_REDUCE_LAYOUT)
+            // Octahedron Mapping
+            brx_float3 raw_L_omega = brx_sh_application_bridge_get_environment_map_lighting(texture_coordinates);
+
+            brx_float2 uv = (brx_float2(texture_coordinates) + brx_float2(0.5, 0.5)) / brx_float2(texture_size);
+
+           	// PBRT-V4: [File Format](https://www.pbrt.org/users-guide-v4#file_format_changes)
+            // PBRT-V4: [imgtool makeequiarea](https://github.com/mmp/pbrt-v4/blob/master/src/pbrt/cmd/imgtool.cpp#L2130)
+            brx_float2 ndc_flip_x = uv * brx_float2(-2.0, -2.0) + brx_float2(1.0, 1.0);
+
+            omega = brx_octahedral_unmap(ndc_flip_x);
+
+            d_omega_mul_texture_dimension = brx_octahedral_map_solid_angle_weight(ndc_flip_x);
+#else
+#error Unknown Layout
+#endif
+            // https://github.com/AcademySoftwareFoundation/Imath/blob/main/src/Imath/half.h
+            // HALF_MAX 65504.0
+            L_omega = brx_clamp(raw_L_omega, brx_float3(0.0, 0.0, 0.0), brx_float3(65504.0, 65504.0, 65504.0));
+        }
+
+        // NOTE: "omega" should be normalized before using the "polynomial form"
+        INTERNAL_BRX_FLOAT_SH upsilon = internal_brx_float_sh_evaluate_basis(omega);
+
+        INTERNAL_BRX_FLOAT3_SH product = internal_brx_float_sh_scale_float3(upsilon, L_omega);
+
+        INTERNAL_BRX_FLOAT3_SH numerical_quadrature_sample_value = internal_brx_float3_sh_scale_float(product, d_omega_mul_texture_dimension);
+
+        reduction_thread_local_sh_rgb = internal_brx_float3_sh_add_float3(reduction_thread_local_sh_rgb, numerical_quadrature_sample_value);
+    }
+
+    brx_int reduction_index = brx_int(brx_group_index);
+
+    // Parallel Reduction
+    INTERNAL_BRX_FLOAT3_SH reduction_group_total_sh_rgb = internal_brx_float3_sh_zero();
+    {
+        // Half of the group shared memory can be saved by the following method:
+        // Half threads store the local values into the group shared memory, and the other threads read back these values from the group shared memory and reduce them with their local values.
+
+        brx_branch if (reduction_index >= INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT && reduction_index < (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT * 2))
+        {
+            brx_int group_shared_memory_index = reduction_index - INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT;
+            internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index] = reduction_thread_local_sh_rgb;
+        }
+
+        brx_group_memory_barrier_with_group_sync();
+
+        brx_branch if (reduction_index < INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT)
+        {
+            brx_int group_shared_memory_index = reduction_index;
+            internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index] = internal_brx_float3_sh_add_float3(reduction_thread_local_sh_rgb, internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index]);
+        }
+
+#if 1
+        brx_unroll for (brx_int k = (INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT / 2); k >= 1; k /= 2)
+        {
+            brx_group_memory_barrier_with_group_sync();
+
+            brx_branch if (reduction_index < k)
+            {
+                brx_int group_shared_memory_index = reduction_index;
+                internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index] = internal_brx_float3_sh_add_float3(internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index], internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index + k]);
+            }
+        }
+#else
+        brx_unroll for (brx_int k = brx_firstbithigh(INTERNAL_BRX_SH_PROJECTION_ENVIRONMENT_MAP_GROUP_SHARED_MEMORY_COUNT / 2); k >= 0; --k)
+        {
+            brx_group_memory_barrier_with_group_sync();
+
+            brx_branch if (reduction_index < (1u << k))
+            {
+                brx_int group_shared_memory_index = reduction_index;
+                internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index] = internal_brx_float3_sh_add_float3(internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index], internal_brx_sh_projection_environment_map_reduction_group_shared_memory[group_shared_memory_index + (1u << k)]);
+            }
+        }
+#endif
+
+        brx_group_memory_barrier_with_group_sync();
+
+        brx_branch if (0 == reduction_index)
+        {
+            reduction_group_total_sh_rgb = internal_brx_sh_projection_environment_map_reduction_group_shared_memory[0];
+        }
+    }
+
+    INTERNAL_BRX_FLOAT3_SH sh_projection_sh_rgb = internal_brx_float3_sh_scale_float(reduction_group_total_sh_rgb, (1.0 / (texture_size.x * texture_size.y)));
+
+    // write the final result into the global memory
+    brx_branch if (0 == reduction_index)
+    {
+        brx_unroll for (brx_int environment_map_sh_coefficient_polychromatic_index = 0; environment_map_sh_coefficient_polychromatic_index < brx_int(BRX_SH_COEFFICIENT_COUNT); ++environment_map_sh_coefficient_polychromatic_index)
+        {
+
+            brx_float environment_map_sh_coefficient_channels[3] = brx_array_constructor_begin(brx_float, 3) sh_projection_sh_rgb.v[environment_map_sh_coefficient_polychromatic_index].x brx_array_constructor_split sh_projection_sh_rgb.v[environment_map_sh_coefficient_polychromatic_index].y brx_array_constructor_split sh_projection_sh_rgb.v[environment_map_sh_coefficient_polychromatic_index].z brx_array_constructor_end;
+
+            brx_unroll for (brx_int environment_map_sh_coefficient_channel_index = 0; environment_map_sh_coefficient_channel_index < 3; ++environment_map_sh_coefficient_channel_index)
+            {
+                brx_int environment_map_sh_coefficient_monochromatic_index = 3 * environment_map_sh_coefficient_polychromatic_index + environment_map_sh_coefficient_channel_index;
+
+                brx_float value_monotonic_increment = environment_map_sh_coefficient_channels[environment_map_sh_coefficient_channel_index];
+
+                brx_uint old_value_packed;
+                brx_uint new_value_packed;
+                brx_loop do
+                {
+                    old_value_packed = brx_sh_application_bridge_get_environment_map_sh_coefficient(environment_map_sh_coefficient_monochromatic_index);
+
+                    float old_value_unpacked = brx_uint_as_float(old_value_packed);
+
+                    float new_value_unpacked = old_value_unpacked + value_monotonic_increment;
+
+                    new_value_packed = brx_float_as_uint(new_value_unpacked);
+                }
+                while (brx_sh_application_bridge_compare_and_swap_environment_map_sh_coefficient(environment_map_sh_coefficient_monochromatic_index, old_value_packed, new_value_packed) != old_value_packed);
+            }
+        }
+    }
+}
+
+INTERNAL_BRX_FLOAT_SH internal_brx_float_sh_evaluate_basis(brx_float3 direction)
+{
+    // "Appendix A2" of [Sloan 2008]: polynomial form of SH basis
+    // DirectXMath: [sh_eval_basis_5](https://github.com/microsoft/DirectXMath/blob/jul2018b/SHMath/DirectXSH.cpp#L346)
+
+    // NOTE: direction should be normalized before using the "polynomial form"
+
+    INTERNAL_BRX_FLOAT_SH upsilon;
+
+    brx_float z2 = direction.z * direction.z;
+
+    brx_float p_0_0 = (0.282094791773878140);
+    upsilon.v[0] = p_0_0;
+    brx_float p_1_0 = (0.488602511902919920) * direction.z;
+    upsilon.v[2] = p_1_0;
+    brx_float p_2_0 = (0.946174695757560080) * z2 + (-0.315391565252520050);
+    upsilon.v[6] = p_2_0;
+    brx_float p_3_0 = direction.z * ((1.865881662950577000) * z2 + (-1.119528997770346200));
+    upsilon.v[12] = p_3_0;
+    brx_float p_4_0 = (1.984313483298443000) * direction.z * p_3_0 + (-1.006230589874905300) * p_2_0;
+    upsilon.v[20] = p_4_0;
+    brx_float p_5_0 = (1.989974874213239700) * direction.z * p_4_0 + (-1.002853072844814000) * p_3_0;
+    upsilon.v[30] = p_5_0;
+
+    brx_float s1 = direction.y;
+    brx_float c1 = direction.x;
+    brx_float p_1_1 = (-0.488602511902919920);
+    upsilon.v[1] = p_1_1 * s1;
+    upsilon.v[3] = p_1_1 * c1;
+    brx_float p_2_1 = (-1.092548430592079200) * direction.z;
+    upsilon.v[5] = p_2_1 * s1;
+    upsilon.v[7] = p_2_1 * c1;
+    brx_float p_3_1 = (-2.285228997322328800) * z2 + (0.457045799464465770);
+    upsilon.v[11] = p_3_1 * s1;
+    upsilon.v[13] = p_3_1 * c1;
+    brx_float p_4_1 = direction.z * ((-4.683325804901024000) * z2 + (2.007139630671867200));
+    upsilon.v[19] = p_4_1 * s1;
+    upsilon.v[21] = p_4_1 * c1;
+    brx_float p_5_1 = (2.031009601158990200) * direction.z * p_4_1 + (-0.991031208965114650) * p_3_1;
+    upsilon.v[29] = p_5_1 * s1;
+    upsilon.v[31] = p_5_1 * c1;
+
+    brx_float s2 = direction.x * s1 + direction.y * c1;
+    brx_float c2 = direction.x * c1 - direction.y * s1;
+    brx_float p_2_2 = (0.546274215296039590);
+    upsilon.v[4] = p_2_2 * s2;
+    upsilon.v[8] = p_2_2 * c2;
+    brx_float p_3_2 = (1.445305721320277100) * direction.z;
+    upsilon.v[10] = p_3_2 * s2;
+    upsilon.v[14] = p_3_2 * c2;
+    brx_float p_4_2 = (3.311611435151459800) * z2 + (-0.473087347878779980);
+    upsilon.v[18] = p_4_2 * s2;
+    upsilon.v[22] = p_4_2 * c2;
+    brx_float p_5_2 = direction.z * ((7.190305177459987500) * z2 + (-2.396768392486662100));
+    upsilon.v[28] = p_5_2 * s2;
+    upsilon.v[32] = p_5_2 * c2;
+
+    brx_float s3 = direction.x * s2 + direction.y * c2;
+    brx_float c3 = direction.x * c2 - direction.y * s2;
+    brx_float p_3_3 = (-0.590043589926643520);
+    upsilon.v[9] = p_3_3 * s3;
+    upsilon.v[15] = p_3_3 * c3;
+    brx_float p_4_3 = (-1.770130769779930200) * direction.z;
+    upsilon.v[17] = p_4_3 * s3;
+    upsilon.v[23] = p_4_3 * c3;
+    brx_float p_5_3 = (-4.403144694917253700) * z2 + (0.489238299435250430);
+    upsilon.v[27] = p_5_3 * s3;
+    upsilon.v[33] = p_5_3 * c3;
+
+    brx_float s4 = direction.x * s3 + direction.y * c3;
+    brx_float c4 = direction.x * c3 - direction.y * s3;
+    brx_float p_4_4 = (0.625835735449176030);
+    upsilon.v[16] = p_4_4 * s4;
+    upsilon.v[24] = p_4_4 * c4;
+    brx_float p_5_4 = (2.075662314881041100) * direction.z;
+    upsilon.v[26] = p_5_4 * s4;
+    upsilon.v[34] = p_5_4 * c4;
+
+    brx_float s5 = direction.x * s4 + direction.y * c4;
+    brx_float c5 = direction.x * c4 - direction.y * s4;
+    brx_float p_5_5 = (-0.656382056840170150);
+    upsilon.v[25] = p_5_5 * s5;
+    upsilon.v[35] = p_5_5 * c5;
+
+    return upsilon;
+}
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float_sh_scale_float3(INTERNAL_BRX_FLOAT_SH x, brx_float3 scale)
+{
+    INTERNAL_BRX_FLOAT3_SH y;
+
+    brx_unroll for (brx_int sh_coefficient_index = 0; sh_coefficient_index < brx_int(BRX_SH_COEFFICIENT_COUNT); ++sh_coefficient_index)
+    {
+        y.v[sh_coefficient_index] = x.v[sh_coefficient_index] * scale;
+    }
+
+    return y;
+}
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_zero()
+{
+    INTERNAL_BRX_FLOAT3_SH x;
+
+    brx_unroll for (brx_int sh_coefficient_index = 0; sh_coefficient_index < brx_int(BRX_SH_COEFFICIENT_COUNT); ++sh_coefficient_index)
+    {
+        x.v[sh_coefficient_index] = brx_float3(0.0, 0.0, 0.0);
+    }
+
+    return x;
+}
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_add_float3(INTERNAL_BRX_FLOAT3_SH x, INTERNAL_BRX_FLOAT3_SH y)
+{
+    INTERNAL_BRX_FLOAT3_SH z;
+
+    brx_unroll for (brx_int sh_coefficient_index = 0; sh_coefficient_index < brx_int(BRX_SH_COEFFICIENT_COUNT); ++sh_coefficient_index)
+    {
+        z.v[sh_coefficient_index] = x.v[sh_coefficient_index] + y.v[sh_coefficient_index];
+    }
+
+    return z;
+}
+
+INTERNAL_BRX_FLOAT3_SH internal_brx_float3_sh_scale_float(INTERNAL_BRX_FLOAT3_SH x, float scale)
+{
+    INTERNAL_BRX_FLOAT3_SH y;
+
+    brx_unroll for (brx_int sh_coefficient_index = 0; sh_coefficient_index < brx_int(BRX_SH_COEFFICIENT_COUNT); ++sh_coefficient_index)
+    {
+        y.v[sh_coefficient_index] = x.v[sh_coefficient_index] * scale;
+    }
+
+    return y;
+}
+
+#endif

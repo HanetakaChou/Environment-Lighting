@@ -1,0 +1,173 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_SPHERICAL_HARMONIC_DIFFUSE_RADIANCE_BSLI_
+#define _BRX_SPHERICAL_HARMONIC_DIFFUSE_RADIANCE_BSLI_ 1
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+#include "../include/brx_spherical_harmonic.h"
+
+brx_float3 brx_sh_diffuse_form_factor(brx_float3 environment_map_sh_coefficients[BRX_SH_COEFFICIENT_COUNT], brx_float3 N)
+{
+    // NOTE: the environment map space (+Z Up; +X Front) may be different from the world space, the normal (N) should be properly transformed before use
+
+    brx_float diffuse_transfer_function_sh_coefficients[BRX_SH_COEFFICIENT_COUNT];
+    {
+        //  0 -> (0,  0)
+        //  1 -> (1, -1)
+        //  2 -> (1,  0)
+        //  3 -> (1,  1)
+        //  4 -> (2, -2)
+        //  5 -> (2, -1)
+        //  6 -> (2,  0)
+        //  7 -> (2,  1)
+        //  8 -> (2,  2)
+        //  9 -> (3, -3)
+        // 10 -> (3, -2)
+        // 11 -> (3, -1)
+        // 12 -> (3,  0)
+        // 13 -> (3,  1)
+        // 14 -> (3,  2)
+        // 15 -> (3,  3)
+        // 16 -> (4, -4)
+        // 17 -> (4, -3)
+        // 18 -> (4, -2)
+        // 19 -> (4, -1)
+        // 20 -> (4,  0)
+        // 21 -> (4,  1)
+        // 22 -> (4,  2)
+        // 23 -> (4,  3)
+        // 24 -> (4,  4)
+        // 25 -> (5, -5)
+        // 26 -> (5, -4)
+        // 27 -> (5, -3)
+        // 28 -> (5, -2)
+        // 29 -> (5, -1)
+        // 30 -> (5,  0)
+        // 31 -> (5,  1)
+        // 32 -> (5,  2)
+        // 33 -> (5,  3)
+        // 34 -> (5,  4)
+        // 35 -> (5,  5)
+
+        // band 0
+        diffuse_transfer_function_sh_coefficients[0] = 0.282094791773878140;
+
+        // band 1
+        diffuse_transfer_function_sh_coefficients[1] = 0.666666666666666667 * (-0.488602511902919920) * N.y;
+        diffuse_transfer_function_sh_coefficients[2] = 0.666666666666666667 * 0.488602511902919920 * N.z;
+        diffuse_transfer_function_sh_coefficients[3] = 0.666666666666666667 * (-0.488602511902919920) * N.x;
+
+        // band 2
+        diffuse_transfer_function_sh_coefficients[4] = 0.25 * 0.546274215296039590 * 2.0 * N.x * N.y;
+        diffuse_transfer_function_sh_coefficients[5] = 0.25 * (-1.092548430592079200) * N.y * N.z;
+        diffuse_transfer_function_sh_coefficients[6] = 0.25 * (0.946174695757560080 * N.z * N.z + (-0.315391565252520050));
+        diffuse_transfer_function_sh_coefficients[7] = 0.25 * (-1.092548430592079200) * N.x * N.z;
+        diffuse_transfer_function_sh_coefficients[8] = 0.25 * 0.546274215296039590 * (N.x * N.x - N.y * N.y);
+
+        // band 3
+        diffuse_transfer_function_sh_coefficients[9] = 0.0;
+        diffuse_transfer_function_sh_coefficients[10] = 0.0;
+        diffuse_transfer_function_sh_coefficients[11] = 0.0;
+        diffuse_transfer_function_sh_coefficients[12] = 0.0;
+        diffuse_transfer_function_sh_coefficients[13] = 0.0;
+        diffuse_transfer_function_sh_coefficients[14] = 0.0;
+        diffuse_transfer_function_sh_coefficients[15] = 0.0;
+
+        // band 4
+        diffuse_transfer_function_sh_coefficients[16] = (-0.041666666666666667) * 0.625835735449176030 * 4.0 * N.x * N.y * (N.x * N.x - N.y * N.y);
+        diffuse_transfer_function_sh_coefficients[17] = (-0.041666666666666667) * (-1.770130769779930200) * (3.0 * N.x * N.x - N.y * N.y) * N.y * N.z;
+        diffuse_transfer_function_sh_coefficients[18] = (-0.041666666666666667) * (3.311611435151459800 * 2.0 * N.x * N.y * N.z * N.z + (-0.473087347878779980) * 2.0 * N.x * N.y);
+        diffuse_transfer_function_sh_coefficients[19] = (-0.041666666666666667) * ((-4.683325804901024000F) * N.y * N.z * N.z * N.z + 2.007139630671867200 * N.y * N.z);
+        diffuse_transfer_function_sh_coefficients[20] = (-0.041666666666666667) * (1.984313483298443000 * 1.865881662950577000 * N.z * N.z * N.z * N.z + (1.984313483298443000 * (-1.119528997770346200) + (-1.006230589874905300) * 0.946174695757560080) * N.z * N.z + (-1.006230589874905300) * (-0.315391565252520050));
+        diffuse_transfer_function_sh_coefficients[21] = (-0.041666666666666667) * ((-4.683325804901024000F) * N.x * N.z * N.z * N.z + 2.007139630671867200 * N.x * N.z);
+        diffuse_transfer_function_sh_coefficients[22] = (-0.041666666666666667) * (3.311611435151459800 * (N.x * N.x - N.y * N.y) * N.z * N.z + (-0.473087347878779980) * (N.x * N.x - N.y * N.y));
+        diffuse_transfer_function_sh_coefficients[23] = (-0.041666666666666667) * (-1.770130769779930200) * N.x * (N.x * N.x - 3.0 * N.y * N.y) * N.z;
+        diffuse_transfer_function_sh_coefficients[24] = (-0.041666666666666667) * 0.625835735449176030 * (N.x * N.x * N.x * N.x - 6.0 * N.x * N.x * N.y * N.y + N.y * N.y * N.y * N.y);
+
+        // band 5
+        diffuse_transfer_function_sh_coefficients[25] = 0.0;
+        diffuse_transfer_function_sh_coefficients[26] = 0.0;
+        diffuse_transfer_function_sh_coefficients[27] = 0.0;
+        diffuse_transfer_function_sh_coefficients[28] = 0.0;
+        diffuse_transfer_function_sh_coefficients[29] = 0.0;
+        diffuse_transfer_function_sh_coefficients[30] = 0.0;
+        diffuse_transfer_function_sh_coefficients[31] = 0.0;
+        diffuse_transfer_function_sh_coefficients[32] = 0.0;
+        diffuse_transfer_function_sh_coefficients[33] = 0.0;
+        diffuse_transfer_function_sh_coefficients[34] = 0.0;
+        diffuse_transfer_function_sh_coefficients[35] = 0.0;
+    }
+
+    brx_float3 diffuse_form_factor =
+        environment_map_sh_coefficients[0] * diffuse_transfer_function_sh_coefficients[0] +
+        environment_map_sh_coefficients[1] * diffuse_transfer_function_sh_coefficients[1] +
+        environment_map_sh_coefficients[2] * diffuse_transfer_function_sh_coefficients[2] +
+        environment_map_sh_coefficients[3] * diffuse_transfer_function_sh_coefficients[3] +
+        environment_map_sh_coefficients[4] * diffuse_transfer_function_sh_coefficients[4] +
+        environment_map_sh_coefficients[5] * diffuse_transfer_function_sh_coefficients[5] +
+        environment_map_sh_coefficients[6] * diffuse_transfer_function_sh_coefficients[6] +
+        environment_map_sh_coefficients[7] * diffuse_transfer_function_sh_coefficients[7] +
+        environment_map_sh_coefficients[8] * diffuse_transfer_function_sh_coefficients[8] +
+        // environment_map_sh_coefficients[9] * diffuse_transfer_function_sh_coefficients[9] +
+        // environment_map_sh_coefficients[10] * diffuse_transfer_function_sh_coefficients[10] +
+        // environment_map_sh_coefficients[11] * diffuse_transfer_function_sh_coefficients[11] +
+        // environment_map_sh_coefficients[12] * diffuse_transfer_function_sh_coefficients[12] +
+        // environment_map_sh_coefficients[13] * diffuse_transfer_function_sh_coefficients[13] +
+        // environment_map_sh_coefficients[14] * diffuse_transfer_function_sh_coefficients[14] +
+        // environment_map_sh_coefficients[15] * diffuse_transfer_function_sh_coefficients[15] +
+        environment_map_sh_coefficients[16] * diffuse_transfer_function_sh_coefficients[16] +
+        environment_map_sh_coefficients[17] * diffuse_transfer_function_sh_coefficients[17] +
+        environment_map_sh_coefficients[18] * diffuse_transfer_function_sh_coefficients[18] +
+        environment_map_sh_coefficients[19] * diffuse_transfer_function_sh_coefficients[19] +
+        environment_map_sh_coefficients[20] * diffuse_transfer_function_sh_coefficients[20] +
+        environment_map_sh_coefficients[21] * diffuse_transfer_function_sh_coefficients[21] +
+        environment_map_sh_coefficients[22] * diffuse_transfer_function_sh_coefficients[22] +
+        environment_map_sh_coefficients[23] * diffuse_transfer_function_sh_coefficients[23] +
+        // environment_map_sh_coefficients[25] * diffuse_transfer_function_sh_coefficients[25] +
+        // environment_map_sh_coefficients[26] * diffuse_transfer_function_sh_coefficients[26] +
+        // environment_map_sh_coefficients[27] * diffuse_transfer_function_sh_coefficients[27] +
+        // environment_map_sh_coefficients[28] * diffuse_transfer_function_sh_coefficients[28] +
+        // environment_map_sh_coefficients[29] * diffuse_transfer_function_sh_coefficients[29] +
+        // environment_map_sh_coefficients[30] * diffuse_transfer_function_sh_coefficients[30] +
+        // environment_map_sh_coefficients[31] * diffuse_transfer_function_sh_coefficients[31] +
+        // environment_map_sh_coefficients[32] * diffuse_transfer_function_sh_coefficients[32] +
+        // environment_map_sh_coefficients[33] * diffuse_transfer_function_sh_coefficients[33] +
+        // environment_map_sh_coefficients[34] * diffuse_transfer_function_sh_coefficients[34] +
+        // environment_map_sh_coefficients[35] * diffuse_transfer_function_sh_coefficients[35] +
+        environment_map_sh_coefficients[24] * diffuse_transfer_function_sh_coefficients[24];
+
+    return diffuse_form_factor;
+}
+
+brx_float3 brx_sh_diffuse_radiance(brx_float3 diffuse_albedo, brx_float3 N, brx_float3 environment_map_sh_coefficients[BRX_SH_COEFFICIENT_COUNT])
+{
+    // UE4: [EnvBRDFApproxFullyRough](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BasePassPixelShader.usf#L1055)
+    // U3D: [GetDiffuseOrDefaultColor](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Material/Lit/Lit.hlsl#L1237)
+    // brx_float3 diffuse_albedo = diffuse_color + specular_color * 0.45;
+
+    // we use diffuse_albedo = diffuse_color since we have SH for specular radiance
+
+    // NOTE: the environment map space (+Z Up; +X Front) may be different from the world space, the normal (N) should be properly transformed before use
+    brx_float3 diffuse_form_factor = brx_sh_diffuse_form_factor(environment_map_sh_coefficients, N);
+
+    brx_float3 diffuse_radiance = diffuse_albedo * diffuse_form_factor;
+
+    return diffuse_radiance;
+}
+
+#endif

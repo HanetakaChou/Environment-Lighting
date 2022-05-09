@@ -1,0 +1,39 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_SPHERICAL_HARMONIC_PROJECTION_ENVIRONMENT_MAP_CLEAR_BSLI_
+#define _BRX_SPHERICAL_HARMONIC_PROJECTION_ENVIRONMENT_MAP_CLEAR_BSLI_ 1
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+
+void brx_sh_application_bridge_set_environment_map_sh_coefficient(in brx_int in_environment_map_sh_coefficient_monochromatic_index, in brx_uint in_environment_map_sh_coefficient);
+
+#include "../include/brx_spherical_harmonic.h"
+
+#ifndef INTERNAL_BRX_DISABLE_ROOT_SIGNATURE
+brx_root_signature(brx_environment_lighting_sh_projection_clear_root_signature_macro, brx_environment_lighting_sh_projection_clear_root_signature_name)
+#endif
+brx_num_threads((3 * BRX_SH_COEFFICIENT_COUNT), 1, 1)
+brx_compute_shader_parameter_begin(main)
+brx_compute_shader_parameter_in_group_index
+brx_compute_shader_parameter_end(main)
+{
+    brx_int environment_map_sh_coefficient_monochromatic_index = brx_int(brx_group_index);
+    brx_sh_application_bridge_set_environment_map_sh_coefficient(environment_map_sh_coefficient_monochromatic_index, brx_float_as_uint(0.0));
+}
+
+#endif

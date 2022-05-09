@@ -1,0 +1,716 @@
+//
+// Copyright (C) YuqiaoZhang(HanetakaChou)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
+#ifndef _BRX_SPHERICAL_HARMONIC_SPECULAR_RADIANCE_BSLI_
+#define _BRX_SPHERICAL_HARMONIC_SPECULAR_RADIANCE_BSLI_ 1
+
+#include "../../Brioche-Shader-Language/shaders/brx_shader_language.bsli"
+#include "../../Brioche-Shader-Language/shaders/brx_brdf.bsli"
+#include "../include/brx_spherical_harmonic.h"
+#include "../include/brx_spherical_harmonic_projection_transfer_function.h"
+
+#define INTERNAL_BRX_SPHERICAL_COORDINATE_LENGTH_SQUARE_MINIMUM 1e-5
+
+brx_float3 brx_sh_specular_form_factor(brx_float3 environment_map_sh_coefficients[BRX_SH_COEFFICIENT_COUNT], brx_float non_rotation_transfer_function_lut_sh_coefficients[BRX_SH_PROJECTION_TRANSFER_FUNCTION_LUT_SH_COEFFICIENT_COUNT], brx_float3 V, brx_float3 N)
+{
+    // NOTE: the environment map space (+Z Up; +X Front) may be different from the world space, the outgoing direction (V) and the normal (N) should be properly transformed before use
+
+    // [DirectX::XMSHRotate](https://github.com/microsoft/DirectXMath/blob/jul2018b/SHMath/DirectXSH.cpp#L1026)
+
+    brx_float specular_transfer_function_sh_coefficients[BRX_SH_COEFFICIENT_COUNT];
+    {
+
+        brx_float r00;
+        brx_float r10;
+        brx_float r20;
+
+        brx_float r01;
+        brx_float r11;
+        brx_float r21;
+
+        brx_float r02;
+        brx_float r12;
+        brx_float r22;
+        {
+            // For isotropic BRDF, we assume the outgoing V is in the XOZ plane
+            brx_float3 T1;
+            {
+                brx_float3 T1_non_unit = V - N * brx_dot(V, N);
+                brx_float T1_length_square = brx_dot(T1_non_unit, T1_non_unit);
+                T1 = (T1_length_square > brx_float(BRX_TROWBRIDGE_REITZ_TANGENT_SPACE_T1_LENGTH_SQUARE_MINIMUM)) ? T1_non_unit / brx_sqrt(T1_length_square) : brx_float3(1.0, 0.0, 0.0);
+            }
+            brx_float3 T2 = brx_normalize(brx_cross(N, T1));
+
+            // we transpose the matrix since we calculate the wigner D matrix of the inverse R
+            r00 = T1.x;
+            r10 = T1.y;
+            r20 = T1.z;
+
+            r01 = T2.x;
+            r11 = T2.y;
+            r21 = T2.z;
+
+            r02 = N.x;
+            r12 = N.y;
+            r22 = N.z;
+        }
+
+        // Constant
+        // 0 -> (0, 0)
+
+        // TODO: remove the zero terms to improve the performance
+
+        // For isotropic BRDF, all m < 0 must be zero
+        //  1 -> (1, -1)
+        //  4 -> (2, -2)
+        //  5 -> (2, -1)
+        //  9 -> (3, -3)
+        // 10 -> (3, -2)
+        // 11 -> (3, -1)
+        // 16 -> (4, -4)
+        // 17 -> (4, -3)
+        // 18 -> (4, -2)
+        // 19 -> (4, -1)
+        // 25 -> (5, -5)
+        // 26 -> (5, -4)
+        // 27 -> (5, -3)
+        // 28 -> (5, -2)
+        // 29 -> (5, -1)
+
+        // LUT
+        //  2 -> (1,  0) ->  0
+        //  3 -> (1,  1) ->  1
+        //  6 -> (2,  0) ->  2
+        //  7 -> (2,  1) ->  3
+        //  8 -> (2,  2) ->  4
+        // 12 -> (3,  0) ->  5
+        // 13 -> (3,  1) ->  6
+        // 14 -> (3,  2) ->  7
+        // 15 -> (3,  3) ->  8
+        // 20 -> (4,  0) ->  9
+        // 21 -> (4,  1) -> 10
+        // 22 -> (4,  2) -> 11
+        // 23 -> (4,  3) -> 12
+        // 24 -> (4,  4) -> 13
+        // 30 -> (5,  0) -> 14
+        // 31 -> (5,  1) -> 15
+        // 32 -> (5,  2) -> 16
+        // 33 -> (5,  3) -> 17
+        // 34 -> (5,  4) -> 18
+        // 35 -> (5,  5) -> 19
+
+        float non_rotation_transfer_function_sh_coefficients[BRX_SH_COEFFICIENT_COUNT];
+        non_rotation_transfer_function_sh_coefficients[0] = 0.28209479177387814347403972578039;
+        non_rotation_transfer_function_sh_coefficients[1] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[2] = non_rotation_transfer_function_lut_sh_coefficients[0];
+        non_rotation_transfer_function_sh_coefficients[3] = non_rotation_transfer_function_lut_sh_coefficients[1];
+        non_rotation_transfer_function_sh_coefficients[4] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[5] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[6] = non_rotation_transfer_function_lut_sh_coefficients[2];
+        non_rotation_transfer_function_sh_coefficients[7] = non_rotation_transfer_function_lut_sh_coefficients[3];
+        non_rotation_transfer_function_sh_coefficients[8] = non_rotation_transfer_function_lut_sh_coefficients[4];
+        non_rotation_transfer_function_sh_coefficients[9] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[10] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[11] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[12] = non_rotation_transfer_function_lut_sh_coefficients[5];
+        non_rotation_transfer_function_sh_coefficients[13] = non_rotation_transfer_function_lut_sh_coefficients[6];
+        non_rotation_transfer_function_sh_coefficients[14] = non_rotation_transfer_function_lut_sh_coefficients[7];
+        non_rotation_transfer_function_sh_coefficients[15] = non_rotation_transfer_function_lut_sh_coefficients[8];
+        non_rotation_transfer_function_sh_coefficients[16] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[17] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[18] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[19] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[20] = non_rotation_transfer_function_lut_sh_coefficients[9];
+        non_rotation_transfer_function_sh_coefficients[21] = non_rotation_transfer_function_lut_sh_coefficients[10];
+        non_rotation_transfer_function_sh_coefficients[22] = non_rotation_transfer_function_lut_sh_coefficients[11];
+        non_rotation_transfer_function_sh_coefficients[23] = non_rotation_transfer_function_lut_sh_coefficients[12];
+        non_rotation_transfer_function_sh_coefficients[24] = non_rotation_transfer_function_lut_sh_coefficients[13];
+        non_rotation_transfer_function_sh_coefficients[25] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[26] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[27] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[28] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[29] = 0.0;
+        non_rotation_transfer_function_sh_coefficients[30] = non_rotation_transfer_function_lut_sh_coefficients[14];
+        non_rotation_transfer_function_sh_coefficients[31] = non_rotation_transfer_function_lut_sh_coefficients[15];
+        non_rotation_transfer_function_sh_coefficients[32] = non_rotation_transfer_function_lut_sh_coefficients[16];
+        non_rotation_transfer_function_sh_coefficients[33] = non_rotation_transfer_function_lut_sh_coefficients[17];
+        non_rotation_transfer_function_sh_coefficients[34] = non_rotation_transfer_function_lut_sh_coefficients[18];
+        non_rotation_transfer_function_sh_coefficients[35] = non_rotation_transfer_function_lut_sh_coefficients[19];
+
+        // band 0
+        {
+            specular_transfer_function_sh_coefficients[0] = non_rotation_transfer_function_sh_coefficients[0];
+        }
+
+        // band 1
+        {
+            specular_transfer_function_sh_coefficients[1] =
+                // r11 * non_rotation_transfer_function_sh_coefficients[1] +
+                (-r12) * non_rotation_transfer_function_sh_coefficients[2] +
+                r10 * non_rotation_transfer_function_sh_coefficients[3];
+
+            specular_transfer_function_sh_coefficients[2] =
+                // (-r21) * non_rotation_transfer_function_sh_coefficients[1] +
+                r22 * non_rotation_transfer_function_sh_coefficients[2] +
+                (-r20) * non_rotation_transfer_function_sh_coefficients[3];
+
+            specular_transfer_function_sh_coefficients[3] =
+                // r01 * non_rotation_transfer_function_sh_coefficients[1] +
+                (-r02) * non_rotation_transfer_function_sh_coefficients[2] +
+                r00 * non_rotation_transfer_function_sh_coefficients[3];
+        }
+
+        brx_float zc1;
+        brx_float zs1;
+        brx_float yc;
+        brx_float ys;
+        brx_float zc2;
+        brx_float zs2;
+        {
+            brx_float cz = r22;
+
+            brx_float cxylen_square = 1.0 - cz * cz;
+            brx_float len67_square = r20 * r20 + r21 * r21;
+            brx_float len25_square = r02 * r02 + r12 * r12;
+            brx_branch if ((cxylen_square > brx_float(INTERNAL_BRX_SPHERICAL_COORDINATE_LENGTH_SQUARE_MINIMUM)) && (len67_square > brx_float(INTERNAL_BRX_SPHERICAL_COORDINATE_LENGTH_SQUARE_MINIMUM)) && (len25_square > brx_float(INTERNAL_BRX_SPHERICAL_COORDINATE_LENGTH_SQUARE_MINIMUM)))
+            {
+                yc = cz;
+                ys = brx_sqrt(cxylen_square);
+                brx_float len67inv = 1.0 / brx_sqrt(len67_square);
+                zc1 = -r20 * len67inv;
+                zs1 = r21 * len67inv;
+                brx_float len25inv = 1.0 / brx_sqrt(len25_square);
+                zc2 = r02 * len25inv;
+                zs2 = r12 * len25inv;
+            }
+            else
+            {
+                zc1 = 1.0;
+                zs1 = 0.0;
+                yc = cz;
+                ys = 0.0;
+                zc2 = r00 * cz;
+                zs2 = -r01;
+            }
+        }
+
+        brx_float zc1m[5];
+        brx_float zs1m[5];
+        {
+            brx_float ct2 = 2.0 * zc1;
+            zc1m[0] = zc1;
+            zs1m[0] = zs1;
+            zc1m[1] = ct2 * zc1 - 1.0;
+            zs1m[1] = ct2 * zs1;
+            zc1m[2] = ct2 * zc1m[1] - zc1;
+            zs1m[2] = ct2 * zs1m[1] - zs1;
+            zc1m[3] = ct2 * zc1m[2] - zc1m[1];
+            zs1m[3] = ct2 * zs1m[2] - zs1m[1];
+            zc1m[4] = ct2 * zc1m[3] - zc1m[2];
+            zs1m[4] = ct2 * zs1m[3] - zs1m[2];
+        }
+
+        brx_float ycm[5];
+        brx_float ysm[5];
+        {
+            brx_float ct2 = 2.0 * yc;
+            ycm[0] = yc;
+            ysm[0] = ys;
+            ycm[1] = ct2 * yc - 1.0;
+            ysm[1] = ct2 * ys;
+            ycm[2] = ct2 * ycm[1] - yc;
+            ysm[2] = ct2 * ysm[1] - ys;
+            ycm[3] = ct2 * ycm[2] - ycm[1];
+            ysm[3] = ct2 * ysm[2] - ysm[1];
+            ycm[4] = ct2 * ycm[3] - ycm[2];
+            ysm[4] = ct2 * ysm[3] - ysm[2];
+        }
+
+        brx_float zc2m[5];
+        brx_float zs2m[5];
+        {
+            brx_float ct2 = 2.0 * zc2;
+            zc2m[0] = zc2;
+            zs2m[0] = zs2;
+            zc2m[1] = ct2 * zc2 - 1.0;
+            zs2m[1] = ct2 * zs2;
+            zc2m[2] = ct2 * zc2m[1] - zc2;
+            zs2m[2] = ct2 * zs2m[1] - zs2;
+            zc2m[3] = ct2 * zc2m[2] - zc2m[1];
+            zs2m[3] = ct2 * zs2m[2] - zs2m[1];
+            zc2m[4] = ct2 * zc2m[3] - zc2m[2];
+            zs2m[4] = ct2 * zs2m[3] - zs2m[2];
+        }
+
+        // band 2
+        {
+#if 0
+            // direct code for quadratics is faster than ZYZ recurrence relations
+
+            brx_float R[25];
+            {
+                const brx_float t41 = r01 * r00;
+                const brx_float t43 = r11 * r10;
+                const brx_float t48 = r11 * r12;
+                const brx_float t50 = r01 * r02;
+                const brx_float t55 = r02 * r02;
+                const brx_float t57 = r22 * r22;
+                const brx_float t58 = r12 * r12;
+                const brx_float t61 = r00 * r02;
+                const brx_float t63 = r10 * r12;
+                const brx_float t68 = r10 * r10;
+                const brx_float t70 = r01 * r01;
+                const brx_float t72 = r11 * r11;
+                const brx_float t74 = r00 * r00;
+                const brx_float t76 = r21 * r21;
+                const brx_float t78 = r20 * r20;
+
+                const brx_float v173 = 1.7320508075688772935274463415059;
+                const brx_float v577 = 0.57735026918962576450914878050196;
+                const brx_float v115 = 1.1547005383792515290182975610039;
+                const brx_float v288 = 0.28867513459481288225457439025098;
+                const brx_float v866 = 0.86602540378443864676372317075294;
+
+                R[0] = r11 * r00 + r01 * r10;
+                R[1] = -r01 * r12 - r11 * r02;
+                R[2] = v173 * r02 * r12;
+                R[3] = -r10 * r02 - r00 * r12;
+                R[4] = r00 * r10 - r01 * r11;
+                R[5] = -r11 * r20 - r21 * r10;
+                R[6] = r11 * r22 + r21 * r12;
+                R[7] = -v173 * r22 * r12;
+                R[8] = r20 * r12 + r10 * r22;
+                R[9] = -r10 * r20 + r11 * r21;
+                R[10] = -v577 * (t41 + t43) + v115 * r21 * r20;
+                R[11] = v577 * (t48 + t50) - v115 * r21 * r22;
+                R[12] = -0.5 * (t55 + t58) + t57;
+                R[13] = v577 * (t61 + t63) - v115 * r20 * r22;
+                R[14] = v288 * (t70 - t68 + t72 - t74) - v577 * (t76 - t78);
+                R[15] = -r01 * r20 - r21 * r00;
+                R[16] = r01 * r22 + r21 * r02;
+                R[17] = -v173 * r22 * r02;
+                R[18] = r00 * r22 + r20 * r02;
+                R[19] = -r00 * r20 + r01 * r21;
+                R[20] = t41 - t43;
+                R[21] = -t50 + t48;
+                R[22] = v866 * (t55 - t58);
+                R[23] = t63 - t61;
+                R[24] = 0.5 * (t74 - t68 - t70 + t72);
+            }
+
+            brx_unroll for (brx_int iR = 0; iR < 5; ++iR)
+            {
+                brx_int uBase = 5 * iR;
+
+                specular_transfer_function_sh_coefficients[4 + iR] =
+                    // R[uBase + 0] * non_rotation_transfer_function_sh_coefficients[4] +
+                    // R[uBase + 1] * non_rotation_transfer_function_sh_coefficients[5] +
+                    R[uBase + 2] * non_rotation_transfer_function_sh_coefficients[6] +
+                    R[uBase + 3] * non_rotation_transfer_function_sh_coefficients[9] +
+                    R[uBase + 4] * non_rotation_transfer_function_sh_coefficients[8];
+            }
+#else
+            const brx_float fx_2_001 = 1.0;                                 // ( sqrt(4.0) / 2.0)
+            const brx_float fx_2_002 = -1.0;                                // (-sqrt(4.0) / 2.0)
+            const brx_float fx_2_003 = -0.5;                                // (-sqrt(1.0) / 2.0)
+            const brx_float fx_2_004 = -0.86602540378443864676372317075294; // (-sqrt(3.0) / 2.0)
+            const brx_float fx_2_005 = 0.5;                                 // ( sqrt(1.0) / 2.0)
+
+            brx_float a2 =
+                non_rotation_transfer_function_sh_coefficients[4 + 2];
+            brx_float a1 =
+                // zc1m[0] * non_rotation_transfer_function_sh_coefficients[4 + 1] +
+                zs1m[0] * non_rotation_transfer_function_sh_coefficients[4 + 3];
+            brx_float a3 =
+                // (-zs1m[0]) * non_rotation_transfer_function_sh_coefficients[4 + 1] +
+                zc1m[0] * non_rotation_transfer_function_sh_coefficients[4 + 3];
+            brx_float a0 =
+                // zc1m[1] * non_rotation_transfer_function_sh_coefficients[4 + 0] +
+                zs1m[1] * non_rotation_transfer_function_sh_coefficients[4 + 4];
+            brx_float a4 =
+                // (-zs1m[1]) * non_rotation_transfer_function_sh_coefficients[4 + 0] +
+                zc1m[1] * non_rotation_transfer_function_sh_coefficients[4 + 4];
+
+            brx_float b0 = fx_2_001 * a3;
+            brx_float b1 = fx_2_002 * a1;
+            brx_float b2 = fx_2_003 * a2 + fx_2_004 * a4;
+            brx_float b3 = fx_2_002 * a0;
+            brx_float b4 = fx_2_004 * a2 + fx_2_005 * a4;
+
+            brx_float c2 = b2;
+            brx_float c1 = b1 * ycm[0] + b3 * ysm[0];
+            brx_float c3 = b3 * ycm[0] - b1 * ysm[0];
+            brx_float c0 = b0 * ycm[1] + b4 * ysm[1];
+            brx_float c4 = b4 * ycm[1] - b0 * ysm[1];
+
+            brx_float d0 = fx_2_002 * c3;
+            brx_float d1 = fx_2_002 * c1;
+            brx_float d2 = fx_2_003 * c2 + fx_2_004 * c4;
+            brx_float d3 = fx_2_001 * c0;
+            brx_float d4 = fx_2_004 * c2 + fx_2_005 * c4;
+
+            specular_transfer_function_sh_coefficients[4 + 2] = d2;
+            specular_transfer_function_sh_coefficients[4 + 1] = d1 * zc2m[0] + d3 * zs2m[0];
+            specular_transfer_function_sh_coefficients[4 + 3] = d3 * zc2m[0] - d1 * zs2m[0];
+            specular_transfer_function_sh_coefficients[4 + 0] = d0 * zc2m[1] + d4 * zs2m[1];
+            specular_transfer_function_sh_coefficients[4 + 4] = d4 * zc2m[1] - d0 * zs2m[1];
+#endif
+        }
+
+        // band 3
+        {
+            const brx_float fx_3_001 = -0.79056941504209483299972338610818; // (-sqrt(10.0) / 4.0)
+            const brx_float fx_3_002 = 0.61237243569579452454932101867647;  // ( sqrt( 6.0) / 4.0)
+            const brx_float fx_3_003 = -1.0;                                // (-sqrt(16.0) / 4.0)
+            const brx_float fx_3_004 = -0.61237243569579452454932101867647; // (-sqrt( 6.0) / 4.0)
+            const brx_float fx_3_005 = -0.25;                               // (-sqrt( 1.0) / 4.0)
+            const brx_float fx_3_006 = -0.9682458365518542212948163499456;  // (-sqrt(15.0) / 4.0)
+            const brx_float fx_3_007 = 0.25;                                // ( sqrt( 1.0) / 4.0)
+            const brx_float fx_3_008 = 0.79056941504209483299972338610818;  // ( sqrt(10.0) / 4.0)
+
+            brx_float a3 =
+                non_rotation_transfer_function_sh_coefficients[9 + 3];
+            brx_float a2 =
+                // zc1m[0] * non_rotation_transfer_function_sh_coefficients[9 + 2] +
+                zs1m[0] * non_rotation_transfer_function_sh_coefficients[9 + 4];
+            brx_float a4 =
+                // (-zs1m[0]) * non_rotation_transfer_function_sh_coefficients[9 + 2] +
+                zc1m[0] * non_rotation_transfer_function_sh_coefficients[9 + 4];
+            brx_float a1 =
+                // zc1m[1] * non_rotation_transfer_function_sh_coefficients[9 + 1] +
+                zs1m[1] * non_rotation_transfer_function_sh_coefficients[9 + 5];
+            brx_float a5 =
+                // (-zs1m[1]) * non_rotation_transfer_function_sh_coefficients[9 + 1] +
+                zc1m[1] * non_rotation_transfer_function_sh_coefficients[9 + 5];
+            brx_float a0 =
+                // zc1m[2] * non_rotation_transfer_function_sh_coefficients[9 + 0] +
+                zs1m[2] * non_rotation_transfer_function_sh_coefficients[9 + 6];
+            brx_float a6 =
+                // (-zs1m[2]) * non_rotation_transfer_function_sh_coefficients[9 + 0] +
+                zc1m[2] * non_rotation_transfer_function_sh_coefficients[9 + 6];
+
+            brx_float b0 = fx_3_001 * a3 + fx_3_002 * a5;
+            brx_float b1 = fx_3_003 * a1;
+            brx_float b2 = fx_3_004 * a3 + fx_3_001 * a5;
+            brx_float b3 = fx_3_008 * a0 + fx_3_002 * a2;
+            brx_float b4 = fx_3_005 * a4 + fx_3_006 * a6;
+            brx_float b5 = fx_3_004 * a0 - fx_3_001 * a2;
+            brx_float b6 = fx_3_006 * a4 + fx_3_007 * a6;
+
+            brx_float c3 = b3;
+            brx_float c2 = b2 * ycm[0] + b4 * ysm[0];
+            brx_float c4 = b4 * ycm[0] - b2 * ysm[0];
+            brx_float c1 = b1 * ycm[1] + b5 * ysm[1];
+            brx_float c5 = b5 * ycm[1] - b1 * ysm[1];
+            brx_float c0 = b0 * ycm[2] + b6 * ysm[2];
+            brx_float c6 = b6 * ycm[2] - b0 * ysm[2];
+
+            brx_float d0 = fx_3_008 * c3 + fx_3_004 * c5;
+            brx_float d1 = fx_3_003 * c1;
+            brx_float d2 = fx_3_002 * c3 - fx_3_001 * c5;
+            brx_float d3 = fx_3_001 * c0 + fx_3_004 * c2;
+            brx_float d4 = fx_3_005 * c4 + fx_3_006 * c6;
+            brx_float d5 = fx_3_002 * c0 + fx_3_001 * c2;
+            brx_float d6 = fx_3_006 * c4 + fx_3_007 * c6;
+
+            specular_transfer_function_sh_coefficients[9 + 3] = d3;
+            specular_transfer_function_sh_coefficients[9 + 2] = d2 * zc2m[0] + d4 * zs2m[0];
+            specular_transfer_function_sh_coefficients[9 + 4] = d4 * zc2m[0] - d2 * zs2m[0];
+            specular_transfer_function_sh_coefficients[9 + 1] = d1 * zc2m[1] + d5 * zs2m[1];
+            specular_transfer_function_sh_coefficients[9 + 5] = d5 * zc2m[1] - d1 * zs2m[1];
+            specular_transfer_function_sh_coefficients[9 + 0] = d0 * zc2m[2] + d6 * zs2m[2];
+            specular_transfer_function_sh_coefficients[9 + 6] = d6 * zc2m[2] - d0 * zs2m[2];
+        }
+
+        // band 4
+        {
+
+            const brx_float fx_4_001 = -0.93541434669348534639593718307914; // (-sqrt(56.0) / 8.0)
+            const brx_float fx_4_002 = 0.35355339059327376220042218105242;  // ( sqrt( 8.0) / 8.0)
+            const brx_float fx_4_003 = -0.75;                               // (-sqrt(36.0) / 8.0)
+            const brx_float fx_4_004 = 0.66143782776614764762540393840982;  // ( sqrt(28.0) / 8.0)
+            const brx_float fx_4_005 = -0.35355339059327376220042218105242; // (-sqrt( 8.0) / 8.0)
+            const brx_float fx_4_006 = 0.75;                                // ( sqrt(36.0) / 8.0)
+            const brx_float fx_4_007 = 0.375;                               // ( sqrt( 9.0) / 8.0)
+            const brx_float fx_4_008 = 0.55901699437494742410229341718282;  // ( sqrt(20.0) / 8.0)
+            const brx_float fx_4_009 = 0.7395099728874520053209160364452;   // ( sqrt(35.0) / 8.0)
+            const brx_float fx_4_010 = 0.5;                                 // ( sqrt(16.0) / 8.0)
+            const brx_float fx_4_011 = -0.66143782776614764762540393840982; // (-sqrt(28.0) / 8.0)
+            const brx_float fx_4_012 = 0.125;                               // ( sqrt( 1.0) / 8.0)
+            const brx_float fx_4_013 = 0.93541434669348534639593718307914;  // ( sqrt(56.0) / 8.0)
+
+            brx_float a4 =
+                non_rotation_transfer_function_sh_coefficients[16 + 4];
+            brx_float a3 =
+                // zc1m[0] * non_rotation_transfer_function_sh_coefficients[16 + 3] +
+                zs1m[0] * non_rotation_transfer_function_sh_coefficients[16 + 5];
+            brx_float a5 =
+                // (-zs1m[0]) * non_rotation_transfer_function_sh_coefficients[16 + 3] +
+                zc1m[0] * non_rotation_transfer_function_sh_coefficients[16 + 5];
+            brx_float a2 =
+                // zc1m[1] * non_rotation_transfer_function_sh_coefficients[16 + 2] +
+                zs1m[1] * non_rotation_transfer_function_sh_coefficients[16 + 6];
+            brx_float a6 =
+                // (-zs1m[1]) * non_rotation_transfer_function_sh_coefficients[16 + 2] +
+                zc1m[1] * non_rotation_transfer_function_sh_coefficients[16 + 6];
+            brx_float a1 =
+                // zc1m[2] * non_rotation_transfer_function_sh_coefficients[16 + 1] +
+                zs1m[2] * non_rotation_transfer_function_sh_coefficients[16 + 7];
+            brx_float a7 =
+                // (-zs1m[2]) * non_rotation_transfer_function_sh_coefficients[16 + 1] +
+                zc1m[2] * non_rotation_transfer_function_sh_coefficients[16 + 7];
+            brx_float a0 =
+                // zc1m[3] * non_rotation_transfer_function_sh_coefficients[16 + 0] +
+                zs1m[3] * non_rotation_transfer_function_sh_coefficients[16 + 8];
+            brx_float a8 =
+                // (-zs1m[3]) * non_rotation_transfer_function_sh_coefficients[16 + 0] +
+                zc1m[3] * non_rotation_transfer_function_sh_coefficients[16 + 8];
+
+            brx_float b0 = fx_4_001 * a5 + fx_4_002 * a7;
+            brx_float b1 = fx_4_003 * a1 + fx_4_004 * a3;
+            brx_float b2 = fx_4_005 * a5 + fx_4_001 * a7;
+            brx_float b3 = fx_4_004 * a1 + fx_4_006 * a3;
+            brx_float b4 = fx_4_007 * a4 + fx_4_008 * a6 + fx_4_009 * a8;
+            brx_float b5 = fx_4_013 * a0 + fx_4_002 * a2;
+            brx_float b6 = fx_4_008 * a4 + fx_4_010 * a6 + fx_4_011 * a8;
+            brx_float b7 = fx_4_005 * a0 - fx_4_001 * a2;
+            brx_float b8 = fx_4_009 * a4 + fx_4_011 * a6 + fx_4_012 * a8;
+
+            brx_float c4 = b4;
+            brx_float c3 = b3 * ycm[0] + b5 * ysm[0];
+            brx_float c5 = b5 * ycm[0] - b3 * ysm[0];
+            brx_float c2 = b2 * ycm[1] + b6 * ysm[1];
+            brx_float c6 = b6 * ycm[1] - b2 * ysm[1];
+            brx_float c1 = b1 * ycm[2] + b7 * ysm[2];
+            brx_float c7 = b7 * ycm[2] - b1 * ysm[2];
+            brx_float c0 = b0 * ycm[3] + b8 * ysm[3];
+            brx_float c8 = b8 * ycm[3] - b0 * ysm[3];
+
+            brx_float d0 = fx_4_013 * c5 + fx_4_005 * c7;
+            brx_float d1 = fx_4_003 * c1 + fx_4_004 * c3;
+            brx_float d2 = fx_4_002 * c5 - fx_4_001 * c7;
+            brx_float d3 = fx_4_004 * c1 + fx_4_006 * c3;
+            brx_float d4 = fx_4_007 * c4 + fx_4_008 * c6 + fx_4_009 * c8;
+            brx_float d5 = fx_4_001 * c0 + fx_4_005 * c2;
+            brx_float d6 = fx_4_008 * c4 + fx_4_010 * c6 + fx_4_011 * c8;
+            brx_float d7 = fx_4_002 * c0 + fx_4_001 * c2;
+            brx_float d8 = fx_4_009 * c4 + fx_4_011 * c6 + fx_4_012 * c8;
+
+            specular_transfer_function_sh_coefficients[16 + 4] = d4;
+            specular_transfer_function_sh_coefficients[16 + 3] = d3 * zc2m[0] + d5 * zs2m[0];
+            specular_transfer_function_sh_coefficients[16 + 5] = d5 * zc2m[0] - d3 * zs2m[0];
+            specular_transfer_function_sh_coefficients[16 + 2] = d2 * zc2m[1] + d6 * zs2m[1];
+            specular_transfer_function_sh_coefficients[16 + 6] = d6 * zc2m[1] - d2 * zs2m[1];
+            specular_transfer_function_sh_coefficients[16 + 1] = d1 * zc2m[2] + d7 * zs2m[2];
+            specular_transfer_function_sh_coefficients[16 + 7] = d7 * zc2m[2] - d1 * zs2m[2];
+            specular_transfer_function_sh_coefficients[16 + 0] = d0 * zc2m[3] + d8 * zs2m[3];
+            specular_transfer_function_sh_coefficients[16 + 8] = d8 * zc2m[3] - d0 * zs2m[3];
+        }
+
+        // band 5
+        {
+            const brx_float fx_5_001 = 0.70156076002011400979695288730935;  // ( sqrt(126.0) / 16.0)
+            const brx_float fx_5_002 = -0.684653196881457641821212228501;   // (-sqrt(120.0) / 16.0)
+            const brx_float fx_5_003 = 0.19764235376052370824993084652704;  // ( sqrt( 10.0) / 16.0)
+            const brx_float fx_5_004 = -0.5;                                // (-sqrt( 64.0) / 16.0)
+            const brx_float fx_5_005 = 0.86602540378443864676372317075294;  // ( sqrt(192.0) / 16.0)
+            const brx_float fx_5_006 = 0.52291251658379721748635751611574;  // ( sqrt( 70.0) / 16.0)
+            const brx_float fx_5_007 = 0.30618621784789726227466050933824;  // ( sqrt( 24.0) / 16.0)
+            const brx_float fx_5_008 = -0.79549512883486596495094990736796; // (-sqrt(162.0) / 16.0)
+            const brx_float fx_5_009 = 0.5;                                 // ( sqrt( 64.0) / 16.0)
+            const brx_float fx_5_010 = 0.4841229182759271106474081749728;   // ( sqrt( 60.0) / 16.0)
+            const brx_float fx_5_011 = 0.66143782776614764762540393840982;  // ( sqrt(112.0) / 16.0)
+            const brx_float fx_5_012 = 0.572821961869480000823505899216;    // ( sqrt( 84.0) / 16.0)
+            const brx_float fx_5_013 = 0.125;                               // ( sqrt(  4.0) / 16.0)
+            const brx_float fx_5_014 = 0.4050462936504912644353729647555;   // ( sqrt( 42.0) / 16.0)
+            const brx_float fx_5_015 = 0.90571104663683991085741650982311;  // ( sqrt(210.0) / 16.0)
+            const brx_float fx_5_016 = 0.8125;                              // ( sqrt(169.0) / 16.0)
+            const brx_float fx_5_017 = -0.41926274578121056807672006288711; // (-sqrt( 45.0) / 16.0)
+            const brx_float fx_5_018 = 0.0625;                              // ( sqrt(  1.0) / 16.0)
+            const brx_float fx_5_019 = -0.70156076002011400979695288730935; // (-sqrt(126.0) / 16.0)
+            const brx_float fx_5_020 = 0.684653196881457641821212228501;    // ( sqrt(120.0) / 16.0)
+            const brx_float fx_5_021 = -0.19764235376052370824993084652704; // (-sqrt( 10.0) / 16.0)
+            const brx_float fx_5_022 = -0.52291251658379721748635751611574; // (-sqrt( 70.0) / 16.0)
+            const brx_float fx_5_023 = -0.4841229182759271106474081749728;  // (-sqrt( 60.0) / 16.0)
+
+            brx_float a5 =
+                non_rotation_transfer_function_sh_coefficients[25 + 5];
+            brx_float a4 =
+                // zc1m[0] * non_rotation_transfer_function_sh_coefficients[25 + 4] +
+                zs1m[0] * non_rotation_transfer_function_sh_coefficients[25 + 6];
+            brx_float a6 =
+                // (-zs1m[0]) * non_rotation_transfer_function_sh_coefficients[25 + 4] +
+                zc1m[0] * non_rotation_transfer_function_sh_coefficients[25 + 6];
+            brx_float a3 =
+                // zc1m[1] * non_rotation_transfer_function_sh_coefficients[25 + 3] +
+                zs1m[1] * non_rotation_transfer_function_sh_coefficients[25 + 7];
+            brx_float a7 =
+                // (-zs1m[1]) * non_rotation_transfer_function_sh_coefficients[25 + 3] +
+                zc1m[1] * non_rotation_transfer_function_sh_coefficients[25 + 7];
+            brx_float a2 =
+                // zc1m[2] * non_rotation_transfer_function_sh_coefficients[25 + 2] +
+                zs1m[2] * non_rotation_transfer_function_sh_coefficients[25 + 8];
+            brx_float a8 =
+                // (-zs1m[2]) * non_rotation_transfer_function_sh_coefficients[25 + 2] +
+                zc1m[2] * non_rotation_transfer_function_sh_coefficients[25 + 8];
+            brx_float a1 =
+                // zc1m[3] * non_rotation_transfer_function_sh_coefficients[25 + 1] +
+                zs1m[3] * non_rotation_transfer_function_sh_coefficients[25 + 9];
+            brx_float a9 =
+                // (-zs1m[3]) * non_rotation_transfer_function_sh_coefficients[25 + 1] +
+                zc1m[3] * non_rotation_transfer_function_sh_coefficients[25 + 9];
+            brx_float a0 =
+                // zc1m[4] * non_rotation_transfer_function_sh_coefficients[25 + 0] +
+                zs1m[4] * non_rotation_transfer_function_sh_coefficients[25 + 10];
+            brx_float a10 =
+                // (-zs1m[4]) * non_rotation_transfer_function_sh_coefficients[25 + 0] +
+                zc1m[4] * non_rotation_transfer_function_sh_coefficients[25 + 10];
+
+            brx_float b0 = fx_5_001 * a5 + fx_5_002 * a7 + fx_5_003 * a9;
+            brx_float b1 = fx_5_004 * a1 + fx_5_005 * a3;
+            brx_float b2 = fx_5_006 * a5 + fx_5_007 * a7 + fx_5_008 * a9;
+            brx_float b3 = fx_5_005 * a1 + fx_5_009 * a3;
+            brx_float b4 = fx_5_010 * a5 + fx_5_011 * a7 + fx_5_012 * a9;
+            brx_float b5 = fx_5_019 * a0 + fx_5_022 * a2 + fx_5_023 * a4;
+            brx_float b6 = fx_5_013 * a6 + fx_5_014 * a8 + fx_5_015 * a10;
+            brx_float b7 = fx_5_020 * a0 - fx_5_007 * a2 - fx_5_011 * a4;
+            brx_float b8 = fx_5_014 * a6 + fx_5_016 * a8 + fx_5_017 * a10;
+            brx_float b9 = fx_5_021 * a0 - fx_5_008 * a2 - fx_5_012 * a4;
+            brx_float b10 = fx_5_015 * a6 + fx_5_017 * a8 + fx_5_018 * a10;
+
+            brx_float c5 = b5;
+            brx_float c4 = b4 * ycm[0] + b6 * ysm[0];
+            brx_float c6 = b6 * ycm[0] - b4 * ysm[0];
+            brx_float c3 = b3 * ycm[1] + b7 * ysm[1];
+            brx_float c7 = b7 * ycm[1] - b3 * ysm[1];
+            brx_float c2 = b2 * ycm[2] + b8 * ysm[2];
+            brx_float c8 = b8 * ycm[2] - b2 * ysm[2];
+            brx_float c1 = b1 * ycm[3] + b9 * ysm[3];
+            brx_float c9 = b9 * ycm[3] - b1 * ysm[3];
+            brx_float c0 = b0 * ycm[4] + b10 * ysm[4];
+            brx_float c10 = b10 * ycm[4] - b0 * ysm[4];
+
+            brx_float d0 = fx_5_019 * c5 + fx_5_020 * c7 + fx_5_021 * c9;
+            brx_float d1 = fx_5_004 * c1 + fx_5_005 * c3;
+            brx_float d2 = fx_5_022 * c5 - fx_5_007 * c7 - fx_5_008 * c9;
+            brx_float d3 = fx_5_005 * c1 + fx_5_009 * c3;
+            brx_float d4 = fx_5_023 * c5 - fx_5_011 * c7 - fx_5_012 * c9;
+            brx_float d5 = fx_5_001 * c0 + fx_5_006 * c2 + fx_5_010 * c4;
+            brx_float d6 = fx_5_013 * c6 + fx_5_014 * c8 + fx_5_015 * c10;
+            brx_float d7 = fx_5_002 * c0 + fx_5_007 * c2 + fx_5_011 * c4;
+            brx_float d8 = fx_5_014 * c6 + fx_5_016 * c8 + fx_5_017 * c10;
+            brx_float d9 = fx_5_003 * c0 + fx_5_008 * c2 + fx_5_012 * c4;
+            brx_float d10 = fx_5_015 * c6 + fx_5_017 * c8 + fx_5_018 * c10;
+
+            specular_transfer_function_sh_coefficients[25 + 5] = d5;
+            specular_transfer_function_sh_coefficients[25 + 4] = d4 * zc2m[0] + d6 * zs2m[0];
+            specular_transfer_function_sh_coefficients[25 + 6] = d6 * zc2m[0] - d4 * zs2m[0];
+            specular_transfer_function_sh_coefficients[25 + 3] = d3 * zc2m[1] + d7 * zs2m[1];
+            specular_transfer_function_sh_coefficients[25 + 7] = d7 * zc2m[1] - d3 * zs2m[1];
+            specular_transfer_function_sh_coefficients[25 + 2] = d2 * zc2m[2] + d8 * zs2m[2];
+            specular_transfer_function_sh_coefficients[25 + 8] = d8 * zc2m[2] - d2 * zs2m[2];
+            specular_transfer_function_sh_coefficients[25 + 1] = d1 * zc2m[3] + d9 * zs2m[3];
+            specular_transfer_function_sh_coefficients[25 + 9] = d9 * zc2m[3] - d1 * zs2m[3];
+            specular_transfer_function_sh_coefficients[25 + 0] = d0 * zc2m[4] + d10 * zs2m[4];
+            specular_transfer_function_sh_coefficients[25 + 10] = d10 * zc2m[4] - d0 * zs2m[4];
+        }
+    }
+
+    brx_float3 specular_form_factor =
+        environment_map_sh_coefficients[0] * specular_transfer_function_sh_coefficients[0] +
+        environment_map_sh_coefficients[1] * specular_transfer_function_sh_coefficients[1] +
+        environment_map_sh_coefficients[2] * specular_transfer_function_sh_coefficients[2] +
+        environment_map_sh_coefficients[3] * specular_transfer_function_sh_coefficients[3] +
+        environment_map_sh_coefficients[4] * specular_transfer_function_sh_coefficients[4] +
+        environment_map_sh_coefficients[5] * specular_transfer_function_sh_coefficients[5] +
+        environment_map_sh_coefficients[6] * specular_transfer_function_sh_coefficients[6] +
+        environment_map_sh_coefficients[7] * specular_transfer_function_sh_coefficients[7] +
+        environment_map_sh_coefficients[8] * specular_transfer_function_sh_coefficients[8] +
+        environment_map_sh_coefficients[9] * specular_transfer_function_sh_coefficients[9] +
+        environment_map_sh_coefficients[10] * specular_transfer_function_sh_coefficients[10] +
+        environment_map_sh_coefficients[11] * specular_transfer_function_sh_coefficients[11] +
+        environment_map_sh_coefficients[12] * specular_transfer_function_sh_coefficients[12] +
+        environment_map_sh_coefficients[13] * specular_transfer_function_sh_coefficients[13] +
+        environment_map_sh_coefficients[14] * specular_transfer_function_sh_coefficients[14] +
+        environment_map_sh_coefficients[15] * specular_transfer_function_sh_coefficients[15] +
+        environment_map_sh_coefficients[16] * specular_transfer_function_sh_coefficients[16] +
+        environment_map_sh_coefficients[17] * specular_transfer_function_sh_coefficients[17] +
+        environment_map_sh_coefficients[18] * specular_transfer_function_sh_coefficients[18] +
+        environment_map_sh_coefficients[19] * specular_transfer_function_sh_coefficients[19] +
+        environment_map_sh_coefficients[20] * specular_transfer_function_sh_coefficients[20] +
+        environment_map_sh_coefficients[21] * specular_transfer_function_sh_coefficients[21] +
+        environment_map_sh_coefficients[22] * specular_transfer_function_sh_coefficients[22] +
+        environment_map_sh_coefficients[23] * specular_transfer_function_sh_coefficients[23] +
+        environment_map_sh_coefficients[24] * specular_transfer_function_sh_coefficients[24] +
+        environment_map_sh_coefficients[25] * specular_transfer_function_sh_coefficients[25] +
+        environment_map_sh_coefficients[26] * specular_transfer_function_sh_coefficients[26] +
+        environment_map_sh_coefficients[27] * specular_transfer_function_sh_coefficients[27] +
+        environment_map_sh_coefficients[28] * specular_transfer_function_sh_coefficients[28] +
+        environment_map_sh_coefficients[29] * specular_transfer_function_sh_coefficients[29] +
+        environment_map_sh_coefficients[30] * specular_transfer_function_sh_coefficients[30] +
+        environment_map_sh_coefficients[31] * specular_transfer_function_sh_coefficients[31] +
+        environment_map_sh_coefficients[32] * specular_transfer_function_sh_coefficients[32] +
+        environment_map_sh_coefficients[33] * specular_transfer_function_sh_coefficients[33] +
+        environment_map_sh_coefficients[34] * specular_transfer_function_sh_coefficients[34] +
+        environment_map_sh_coefficients[35] * specular_transfer_function_sh_coefficients[35];
+
+    return specular_form_factor;
+}
+
+brx_float3 brx_sh_specular_radiance(brx_float3 specular_albedo, brx_float3 V, brx_float3 N, brx_float non_rotation_transfer_function_lut_sh_coefficients[BRX_SH_PROJECTION_TRANSFER_FUNCTION_LUT_SH_COEFFICIENT_COUNT], brx_float3 environment_map_sh_coefficients[BRX_SH_COEFFICIENT_COUNT])
+{
+    // const brx_float alpha = brx_max(brx_float(BRX_TROWBRIDGE_REITZ_ALPHA_MINIMUM), roughness * roughness);
+    // const brx_float NdotV = brx_max(brx_float(BRX_TROWBRIDGE_REITZ_NDOTV_MINIMUM), brx_dot(N, V));
+
+    // brx_float2 raw_lut_uv = brx_float2(brx_max(0.0, 1.0 - NdotV), brx_max(0.0, 1.0 - alpha));
+
+    // Remap: [0, 1] -> [0.5/size, 1.0 - 0.5/size]
+    // U3D: [Remap01ToHalfTexelCoord](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl#L661)
+    // UE4: [N/A](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/RectLight.ush#L450)
+    // brx_int2 specular_hdr_fresnel_factors_lut_dimension = brx_texture_2d_get_dimension(t_specular_hdr_fresnel_factors_lut, 0);
+    // brx_float2 specular_hdr_fresnel_factors_lut_uv = (brx_float2(0.5, 0.5) + brx_float2(specular_hdr_fresnel_factors_lut_dimension.x - 1, specular_hdr_fresnel_factors_lut_dimension.y - 1) * raw_lut_uv) / brx_float2(specular_hdr_fresnel_factors_lut_dimension.x, specular_hdr_fresnel_factors_lut_dimension.y);
+
+    // brx_float2 fresnel_factor = brx_sample_level_2d(t_specular_hdr_fresnel_factors_lut, s_clamp_linear_sampler, specular_hdr_fresnel_factors_lut_uv, 0.0).xy;
+    // brx_float f0_factor = fresnel_factor.x;
+    // brx_float f90_factor = fresnel_factor.y;
+
+    // UE4: [EnvBRDF](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BRDF.ush#L476)
+    // brx_float3 f0 = specular_color;
+    // brx_float f90 = brx_clamp(50.0 * f0.g, 0.0, 1.0);
+
+    // UE4: [EnvBRDF](https://github.com/EpicGames/UnrealEngine/blob/4.27/Engine/Shaders/Private/BRDF.ush#L471)
+    // U3D: [GetPreIntegratedFGDGGXAndDisneyDiffuse](https://github.com/Unity-Technologies/Graphics/blob/v10.8.0/com.unity.render-pipelines.high-definition/Runtime/Material/PreIntegratedFGD/PreIntegratedFGD.hlsl#L8)
+    // brx_float3 specular_albedo = f0 * f0_factor + float3(f90, f90, f90) * f90_factor;
+
+    // brx_int3 specular_transfer_function_sh_coefficients_lut_dimension = brx_texture_2d_array_get_dimension(t_specular_transfer_function_sh_coefficients_lut, 0);
+    // brx_float2 specular_transfer_function_sh_coefficients_lut_uv = (brx_float2(0.5, 0.5) + brx_float2(specular_transfer_function_sh_coefficients_lut_dimension.x - 1, specular_transfer_function_sh_coefficients_lut_dimension.y - 1) * raw_lut_uv) / brx_float2(specular_transfer_function_sh_coefficients_lut_dimension.x, specular_transfer_function_sh_coefficients_lut_dimension.y);
+
+    // brx_float non_rotation_transfer_function_lut_sh_coefficients[BRX_SH_PROJECTION_TRANSFER_FUNCTION_LUT_SH_COEFFICIENT_COUNT];
+    // brx_unroll for (brx_int transfer_function_lut_sh_coefficient_index = 0; transfer_function_lut_sh_coefficient_index < BRX_SH_PROJECTION_TRANSFER_FUNCTION_LUT_SH_COEFFICIENT_COUNT; ++transfer_function_lut_sh_coefficient_index)
+    // {
+    //     non_rotation_transfer_function_lut_sh_coefficients[transfer_function_lut_sh_coefficient_index] = brx_sample_level_2d_array(t_specular_transfer_function_sh_coefficients_lut, s_clamp_linear_sampler, brx_float3(specular_transfer_function_sh_coefficients_lut_uv, brx_float(transfer_function_lut_sh_coefficient_index)), 0.0).x;
+    // }
+
+    // NOTE: the environment map space (+Z Up; +X Front) may be different from the world space, the outgoing direction (V) and the normal (N) should be properly transformed before use
+    brx_float3 specular_form_factor = brx_sh_specular_form_factor(environment_map_sh_coefficients, non_rotation_transfer_function_lut_sh_coefficients, V, N);
+
+    brx_float3 specular_radiance = specular_albedo * specular_form_factor;
+
+    return specular_radiance;
+}
+
+#endif
