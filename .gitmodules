@@ -1,0 +1,16 @@
+[submodule "thirdparty/Brioche-Shader-Language"]
+	path = thirdparty/Brioche-Shader-Language
+	url = git@github.com:HanetakaChou/Brioche-Shader-Language.git
+	branch = master
+[submodule "thirdparty/McRT-Malloc"]
+	path = thirdparty/McRT-Malloc
+	url = git@github.com:HanetakaChou/McRT-Malloc.git
+	branch = master
+[submodule "thirdparty/Hemispherical-Directional-Reflectance"]
+	path = thirdparty/Hemispherical-Directional-Reflectance
+	url = git@github.com:HanetakaChou/Hemispherical-Directional-Reflectance.git
+	branch = master
+[submodule "thirdparty/Spherical-Harmonic"]
+	path = thirdparty/Spherical-Harmonic
+	url = git@github.com:HanetakaChou/Spherical-Harmonic.git
+	branch = master
