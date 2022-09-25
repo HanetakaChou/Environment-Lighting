@@ -89,6 +89,9 @@
     <ClInclude Include="code\demo.h">
       <Filter>code</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\unified_integrate_pipeline_layout.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="vulkansdk\lib\x64\vulkan-1.dll">
@@ -117,6 +120,9 @@
     <CustomBuild Include="shaders\forward_shading_vertex.glsl">
       <Filter>shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders\integrate_form_factor_normal_distribution.glsl">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="spirv\forward_shading_fragment.inl">
@@ -124,6 +130,12 @@
     </None>
     <None Include="spirv\forward_shading_vertex.inl">
       <Filter>spirv</Filter>
+    </None>
+    <None Include="shaders\sh_projecting.glsli">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\math_consts.glsli">
+      <Filter>shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

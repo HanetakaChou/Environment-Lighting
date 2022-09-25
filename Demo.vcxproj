@@ -190,6 +190,7 @@
     <ClInclude Include="code\support\utils_align_up.h" />
     <ClInclude Include="code\support\window_main.h" />
     <ClInclude Include="shaders\forward_shading_pipeline_layout.h" />
+    <ClInclude Include="shaders\unified_integrate_pipeline_layout.h" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="vulkansdk\lib\x64\VkLayer_khronos_validation.dll">
@@ -268,6 +269,23 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <CustomBuild Include="shaders\integrate_form_factor_normal_distribution.glsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(SolutionDir)vulkansdk\bin\glslangValidator.exe" -g -Od -S comp -V100 -o "$(SolutionDir)\spirv\%(Filename).inl" -x "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)vulkansdk\bin\glslangValidator.exe" -g -Od -S comp -V100 -o "$(SolutionDir)\spirv\%(Filename).inl" -x "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)\spirv\%(Filename).inl</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)\spirv\%(Filename).inl</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)\spirv\%(Filename).inl</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)\spirv\%(Filename).inl</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)shaders\unified_integrate_pipeline_layout.h;$(SolutionDir)shaders\sh_projecting.glsli;$(SolutionDir)shaders\math_consts.glsli</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)shaders\unified_integrate_pipeline_layout.h;$(SolutionDir)shaders\sh_projecting.glsli;$(SolutionDir)shaders\math_consts.glsli</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)shaders\unified_integrate_pipeline_layout.h;$(SolutionDir)shaders\sh_projecting.glsli;$(SolutionDir)shaders\math_consts.glsli</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)shaders\unified_integrate_pipeline_layout.h;$(SolutionDir)shaders\sh_projecting.glsli;$(SolutionDir)shaders\math_consts.glsli</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)vulkansdk\bin\glslangValidator.exe" -S comp -V100 -o "$(SolutionDir)\spirv\%(Filename).inl" -x "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)vulkansdk\bin\glslangValidator.exe" -S comp -V100 -o "$(SolutionDir)\spirv\%(Filename).inl" -x "%(FullPath)"</Command>
+    </CustomBuild>
+    <None Include="shaders\math_consts.glsli" />
+    <None Include="shaders\sh_projecting.glsli" />
     <None Include="spirv\forward_shading_fragment.inl" />
     <None Include="spirv\forward_shading_vertex.inl" />
   </ItemGroup>

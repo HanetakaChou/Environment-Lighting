@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [Cube-VK]
+    branches: [Environment-Lighting-VK]
   pull_request:
-    branches: [Cube-VK]
+    branches: [Environment-Lighting-VK]
 
 jobs:
   build_win32_desktop:
